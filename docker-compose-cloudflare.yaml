@@ -1,5 +1,5 @@
 networks:
-  cloudflared:
+  guac_cloudflared:
     driver: bridge
     external: true
     ipam:
@@ -10,11 +10,10 @@ services:
   guacamole:
     image: cloudflare/cloudflared:2024.11.0
     hostname: cloudflare
-    container_name: cloudflare
     restart: unless-stopped
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=<enter token here>
+      - TUNNEL_TOKEN=<enter cloudflare token here>
     networks:
-      cloudflared:
+      guac_cloudflared:
         ipv4_address: 172.18.0.2
