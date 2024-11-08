@@ -1,0 +1,23 @@
+networks:
+  cloudflared:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16
+services:
+  guacamole:
+    image: abesnier/guacamole:1.5.5-pg15
+    hostname: guacamole
+    container_name: guacamole
+    restart: unless-stopped
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.3
+    ports: 
+      - "8080:8080"
+    volumes:
+      - guac_config:/config
+volumes:
+  guac_config:
+    driver: local

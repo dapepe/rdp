@@ -1,0 +1,19 @@
+networks:
+  cloudflared:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16
+services:
+  guacamole:
+    image: cloudflare/cloudflared:2024:10.1
+    hostname: cloudflare
+    container_name: cloudflare
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=<enter token here>
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.2
