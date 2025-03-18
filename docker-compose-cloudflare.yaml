@@ -1,13 +1,12 @@
 networks:
-  guac_cloudflared:
+  cloudflared:
     driver: bridge
-    external: true
     ipam:
       driver: default
       config:
         - subnet: 172.18.0.0/16
 services:
-  guacamole:
+  cloudflare:
     image: cloudflare/cloudflared:2024.11.0
     hostname: cloudflare
     restart: unless-stopped
