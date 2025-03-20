@@ -3,9 +3,13 @@ This Repository contains docker compose files for Apache Guacamole and Cloudflar
 ## Usage:
 start the docker container:
 
-cd /home
+
+```
 docker compose -p guac -f docker-compose-guacamole.yaml up -d
+```
+```
 docker compose -f docker-compose-cloudflare.yaml up -d
+```
 
 check if container are starting:
 ```
