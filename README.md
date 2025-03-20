@@ -1,9 +1,14 @@
 This Repository contains docker compose files for Apache Guacamole and Cloudflare:
 
 ## Usage:
+Enter the cloudflare tunnel token under
+```
+    environment:
+      - TUNNEL_TOKEN=<enter cloudflare token here>
+```
+in the **docker-compose-cloudflare.yaml** file
+
 start the docker container:
-
-
 ```
 docker compose -p guac -f docker-compose-guacamole.yaml up -d
 ```
