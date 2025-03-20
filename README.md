@@ -1,4 +1,4 @@
-This Repository contains docker compose files for Apache Guacamole and Cloudflare:
+This Repository contains the Docker Compose files for Apache Guacamole and Cloudflare:
 
 ## Usage:
 Enter the cloudflare tunnel token under
@@ -16,11 +16,11 @@ docker compose -p guac -f docker-compose-guacamole.yaml up -d
 docker compose -f docker-compose-cloudflare.yaml up -d
 ```
 
-check if container are starting:
+Check if container are running:
 ```
 docker container ps
 ```
-it should now display something like that:
+It should now display something like that:
 ```
 462e74a50462   cloudflare/cloudflared:2024.11.0 "cloudflared --no-au…" 13 seconds ago Up 12 seconds home-guacamole-1
 ```
@@ -43,5 +43,5 @@ Password: guacadmin
 
 
 ### check if cloudflare tunnel connection was successfull: 
-Under "Zero-trust/networks/Tunnels" on the Cloudflare website you can check the tunnel
+Under "Zero-trust/networks/Tunnels" on the Cloudflare website its possible to check the tunnel
 status.  
