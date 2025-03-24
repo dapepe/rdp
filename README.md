@@ -10,7 +10,7 @@ in the **docker-compose-cloudflare.yaml** file
 
 start the docker container:
 ```
-docker compose -p guac -f docker-compose-guacamole.yaml up -d
+docker compose -f docker-compose-guacamole.yaml up -d
 ```
 ```
 docker compose -f docker-compose-cloudflare.yaml up -d
