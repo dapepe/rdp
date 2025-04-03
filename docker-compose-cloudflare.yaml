@@ -14,5 +14,5 @@ services:
     environment:
       - TUNNEL_TOKEN=<enter cloudflare token here>
     networks:
-      guac_cloudflared:
+      cloudflared:
         ipv4_address: 172.18.0.2
