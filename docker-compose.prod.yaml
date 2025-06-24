@@ -1,0 +1,162 @@
+# Production Docker Compose Configuration
+# This file includes external PostgreSQL and enhanced security
+
+version: '3.8'
+
+networks:
+  cloudflared:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.18.0.0/16
+
+services:
+  # External PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    hostname: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: guacamole_db
+      POSTGRES_USER: guacamole_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-guacamole_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guacamole_user -d guacamole_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # GuacD Daemon
+  guacd:
+    image: abesnier/guacd:1.5.5
+    hostname: guacd
+    restart: unless-stopped
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.4
+    volumes:
+      - ./logs:/opt/guacamole/logs
+    healthcheck:
+      test: ["CMD", "pgrep", "guacd"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # Guacamole Web Application
+  guacamole:
+    image: abesnier/guacamole:1.5.5-pg15
+    hostname: guacamole
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      guacd:
+        condition: service_healthy
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.3
+    # No port mapping in production - only accessible via Cloudflare tunnel
+    volumes:
+      - guac_config:/config
+      - ./logs:/opt/guacamole/logs
+    environment:
+      - GUACD_HOSTNAME=guacd
+      - GUACD_PORT=4822
+      - POSTGRES_HOSTNAME=postgres
+      - POSTGRES_DATABASE=guacamole_db
+      - POSTGRES_USER=guacamole_user
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-guacamole_password}
+      - POSTGRES_PORT=5432
+      - GUACD_HOSTNAME=guacd
+      - GUACD_PORT=4822
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/guacamole/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    labels:
+      - "traefik.enable=false"
+      - "com.docker.compose.project=guacamole"
+
+  # Cloudflare Tunnel
+  cloudflare:
+    image: cloudflare/cloudflared:2024.11.0
+    hostname: cloudflare
+    restart: unless-stopped
+    depends_on:
+      guacamole:
+        condition: service_healthy
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+      - TZ=UTC
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.2
+    volumes:
+      - ./logs:/var/log/cloudflared
+      - cloudflare_config:/etc/cloudflared
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    labels:
+      - "traefik.enable=false"
+      - "com.docker.compose.project=cloudflare"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  guac_config:
+    driver: local
+  cloudflare_config:
+    driver: local
+  postgres_data:
+    driver: local 

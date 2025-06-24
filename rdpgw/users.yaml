@@ -1,0 +1,202 @@
+# RDP Gateway Users Configuration
+# This file defines users and their permissions for RDP Gateway access
+
+# User definitions
+users:
+  # Administrator user
+  - username: "admin"
+    password_hash: "$2a$10$example_hash_replace_with_actual_hash"  # bcrypt hash
+    full_name: "System Administrator"
+    email: "admin@yourorganization.com"
+    groups:
+      - "administrators"
+      - "remote-users"
+    permissions:
+      - "connect_all"
+      - "manage_sessions"
+      - "view_logs"
+    enabled: true
+    mfa_required: true
+    max_concurrent_sessions: 5
+    allowed_hosts:
+      - "*"  # Access to all hosts
+    
+  # IT Staff user
+  - username: "it-staff"
+    password_hash: "$2a$10$example_hash_replace_with_actual_hash"
+    full_name: "IT Staff Member"
+    email: "itstaff@yourorganization.com"
+    groups:
+      - "remote-users"
+      - "it-support"
+    permissions:
+      - "connect_assigned"
+      - "view_own_sessions"
+    enabled: true
+    mfa_required: true
+    max_concurrent_sessions: 3
+    allowed_hosts:
+      - "windows-server-01"
+      - "workstation-01"
+      - "dev-server"
+    
+  # Security team user
+  - username: "security-team"
+    password_hash: "$2a$10$example_hash_replace_with_actual_hash"
+    full_name: "Security Team Member"
+    email: "security@yourorganization.com"
+    groups:
+      - "security"
+      - "remote-users"
+    permissions:
+      - "connect_assigned"
+      - "view_security_logs"
+    enabled: true
+    mfa_required: true
+    max_concurrent_sessions: 2
+    allowed_hosts:
+      - "secure-server"
+      - "domain-controller"
+    
+  # Developer user
+  - username: "developer"
+    password_hash: "$2a$10$example_hash_replace_with_actual_hash"
+    full_name: "Developer"
+    email: "dev@yourorganization.com"
+    groups:
+      - "developers"
+      - "remote-users"
+    permissions:
+      - "connect_assigned"
+    enabled: true
+    mfa_required: false  # Optional: developers might not need MFA for dev servers
+    max_concurrent_sessions: 2
+    allowed_hosts:
+      - "dev-server"
+    
+  # Domain admin user
+  - username: "domain-admin"
+    password_hash: "$2a$10$example_hash_replace_with_actual_hash"
+    full_name: "Domain Administrator"
+    email: "domainadmin@yourorganization.com"
+    groups:
+      - "domain-admins"
+      - "administrators"
+    permissions:
+      - "connect_all"
+      - "manage_domain"
+    enabled: true
+    mfa_required: true
+    max_concurrent_sessions: 3
+    allowed_hosts:
+      - "domain-controller"
+      - "windows-server-01"
+    
+  # QA team user
+  - username: "qa-team"
+    password_hash: "$2a$10$example_hash_replace_with_actual_hash"
+    full_name: "QA Team Member"
+    email: "qa@yourorganization.com"
+    groups:
+      - "qa"
+      - "remote-users"
+    permissions:
+      - "connect_assigned"
+    enabled: true
+    mfa_required: false
+    max_concurrent_sessions: 2
+    allowed_hosts:
+      - "dev-server"
+
+# Group definitions
+groups:
+  administrators:
+    description: "System Administrators"
+    permissions:
+      - "connect_all"
+      - "manage_sessions"
+      - "manage_users"
+      - "view_logs"
+      - "system_admin"
+    default_session_timeout: 28800  # 8 hours
+    
+  remote-users:
+    description: "Remote Access Users"
+    permissions:
+      - "connect_assigned"
+      - "view_own_sessions"
+    default_session_timeout: 14400  # 4 hours
+    
+  security:
+    description: "Security Team"
+    permissions:
+      - "connect_assigned"
+      - "view_security_logs"
+      - "audit_sessions"
+    default_session_timeout: 7200  # 2 hours
+    
+  developers:
+    description: "Development Team"
+    permissions:
+      - "connect_assigned"
+      - "file_transfer"  # Developers might need file transfer
+    default_session_timeout: 14400  # 4 hours
+    
+  domain-admins:
+    description: "Domain Administrators"
+    permissions:
+      - "connect_all"
+      - "manage_domain"
+      - "view_logs"
+    default_session_timeout: 28800  # 8 hours
+    
+  qa:
+    description: "Quality Assurance Team"
+    permissions:
+      - "connect_assigned"
+    default_session_timeout: 7200  # 2 hours
+    
+  it-support:
+    description: "IT Support Team"
+    permissions:
+      - "connect_assigned"
+      - "view_own_sessions"
+      - "basic_troubleshooting"
+    default_session_timeout: 14400  # 4 hours
+
+# Authentication settings
+auth_settings:
+  # Password requirements
+  password_policy:
+    min_length: 12
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special_chars: true
+    max_age_days: 90
+    
+  # Session settings
+  session_settings:
+    default_timeout: 14400  # 4 hours
+    max_timeout: 28800      # 8 hours
+    idle_timeout: 1800      # 30 minutes
+    
+  # MFA settings
+  mfa_settings:
+    default_required: true
+    remember_device_days: 30
+    backup_codes_enabled: true
+    
+  # Account lockout
+  lockout_policy:
+    max_failed_attempts: 5
+    lockout_duration_minutes: 30
+    reset_time_minutes: 60
+
+# Audit and logging
+audit_settings:
+  log_successful_logins: true
+  log_failed_logins: true
+  log_session_activities: true
+  log_file_transfers: true
+  retention_days: 90 

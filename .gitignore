@@ -1,0 +1,55 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+*.tar.gz
+
+# Configuration files with sensitive data
+config/
+*.conf
+
+# Docker volumes
+guac_config/
+cloudflare_config/
+
+# Extensions and custom files
+extensions/*.jar
+lib/*.jar
+
+# Custom branding assets (keep templates)
+branding/logo.png
+branding/favicon.ico
+branding/background*.jpg
+branding/background*.png
+branding/images/*
+branding/fonts/*
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cloudflare tunnel tokens
+tunnel_token.txt
+*.token 

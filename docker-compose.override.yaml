@@ -1,0 +1,26 @@
+# Development/Testing Override
+# This file is automatically loaded by docker-compose
+# Use this for development, debugging, or testing
+
+version: '3.8'
+
+services:
+  guacamole:
+    ports:
+      - "127.0.0.1:8080:8080"  # Expose locally for testing
+    environment:
+      - GUACD_HOSTNAME=guacd
+      - GUACD_PORT=4822
+    volumes:
+      - ./logs:/opt/guacamole/logs
+      - ./config:/opt/guacamole/config  # Mount config for development
+
+  guacd:
+    volumes:
+      - ./logs:/opt/guacamole/logs
+      - ./config:/opt/guacamole/config
+
+  cloudflare:
+    volumes:
+      - ./logs:/var/log/cloudflared
+      - ./config:/etc/cloudflared 
