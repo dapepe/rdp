@@ -70,6 +70,38 @@ create_directories() {
     log_info "Directories created successfully"
 }
 
+# Detect architecture and set appropriate images
+detect_architecture() {
+    log_header "Detecting System Architecture"
+    
+    ARCH=$(uname -m)
+    case $ARCH in
+        x86_64|amd64)
+            log_info "Detected AMD64/x86_64 architecture"
+            GUACAMOLE_IMAGE="guacamole/guacamole:1.5.5"
+            GUACD_IMAGE="guacamole/guacd:1.5.5"
+            ;;
+        aarch64|arm64)
+            log_info "Detected ARM64 architecture (Raspberry Pi)"
+            GUACAMOLE_IMAGE="abesnier/guacamole:1.5.5-pg15"
+            GUACD_IMAGE="abesnier/guacd:1.5.5"
+            ;;
+        armv7l|armv6l)
+            log_warn "Detected 32-bit ARM architecture - using ARM64 images (may not work)"
+            GUACAMOLE_IMAGE="abesnier/guacamole:1.5.5-pg15"
+            GUACD_IMAGE="abesnier/guacd:1.5.5"
+            ;;
+        *)
+            log_warn "Unknown architecture: $ARCH - defaulting to ARM64 images"
+            GUACAMOLE_IMAGE="abesnier/guacamole:1.5.5-pg15"
+            GUACD_IMAGE="abesnier/guacd:1.5.5"
+            ;;
+    esac
+    
+    log_info "Using Guacamole image: $GUACAMOLE_IMAGE"
+    log_info "Using GuacD image: $GUACD_IMAGE"
+}
+
 # Setup environment file
 setup_environment() {
     log_header "Setting up Environment Configuration"
@@ -78,14 +110,29 @@ setup_environment() {
         log_info "Creating .env file from template..."
         cp env.example .env
         
+        # Set architecture-specific images
+        sed -i.bak "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
+        sed -i.bak "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
+        
         # Generate secure passwords
         POSTGRES_PASSWORD=$(openssl rand -base64 32)
         sed -i.bak "s/guacamole_password/$POSTGRES_PASSWORD/" .env
         
-        log_info "Environment file created with secure passwords"
+        log_info "Environment file created with secure passwords and correct images"
         log_warn "Please edit .env file and add your Cloudflare tunnel token"
     else
         log_info ".env file already exists"
+        
+        # Update images if they're using defaults
+        if grep -q "abesnier/guacamole:1.5.5-pg15" .env && [ "$GUACAMOLE_IMAGE" != "abesnier/guacamole:1.5.5-pg15" ]; then
+            log_info "Updating images for your architecture..."
+            sed -i.bak "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
+            sed -i.bak "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
+        elif grep -q "guacamole/guacamole:1.5.5" .env && [ "$GUACAMOLE_IMAGE" != "guacamole/guacamole:1.5.5" ]; then
+            log_info "Updating images for your architecture..."
+            sed -i.bak "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
+            sed -i.bak "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
+        fi
     fi
 }
 
@@ -327,6 +374,7 @@ main() {
     
     check_prerequisites
     create_directories
+    detect_architecture
     setup_environment
     setup_database
     get_tunnel_token

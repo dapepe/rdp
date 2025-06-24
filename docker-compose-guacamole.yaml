@@ -39,7 +39,7 @@ services:
           cpus: '0.25'
 
   guacamole:
-    image: guacamole/guacamole:1.5.5
+    image: ${GUACAMOLE_IMAGE:-abesnier/guacamole:1.5.5-pg15}
     hostname: guacamole
     restart: unless-stopped
     depends_on:
@@ -97,7 +97,7 @@ services:
       - "com.docker.compose.project=guacamole"
 
   guacd:
-    image: guacamole/guacd:1.5.5
+    image: ${GUACD_IMAGE:-abesnier/guacd:1.5.5}
     hostname: guacd
     restart: unless-stopped
     networks:

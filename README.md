@@ -25,6 +25,16 @@ This repository provides a comprehensive, production-ready setup for secure remo
 - (Optional) DUO Security account for 2FA
 - (Optional) ImageMagick (for custom branding assets)
 
+### Supported Architectures
+
+- **AMD64/x86_64**: Intel/AMD processors (most desktop/server systems)
+- **ARM64/aarch64**: Apple Silicon Macs, Raspberry Pi 4/5, AWS Graviton
+- **ARM32**: Raspberry Pi 3 and older (limited support)
+
+The setup script automatically detects your architecture and uses the appropriate Docker images:
+- **AMD64 systems**: Uses official `guacamole/guacamole` and `guacamole/guacd` images
+- **ARM64 systems**: Uses community `abesnier/guacamole` and `abesnier/guacd` images with ARM64 support
+
 ## Architecture
 
 ```
@@ -99,9 +109,11 @@ You should see output similar to:
 ```
 CONTAINER ID   IMAGE                                    COMMAND                  CREATED         STATUS                     PORTS                    NAMES
 462e74a50462   cloudflare/cloudflared:2024.11.0        "cloudflared tunnel …"   13 seconds ago  Up 12 seconds                                      guac-cloudflare-cloudflare-1
-df9decd3f3c9   guacamole/guacamole:1.5.5               "/opt/guacamole/bin/…"   About a minute  Up About a minute (healthy) 127.0.0.1:8080->8080/tcp  guac-cloudflare-guacamole-1
-a1b2c3d4e5f6   guacamole/guacd:1.5.5                   "/bin/sh -c '/usr/lo…"   About a minute  Up About a minute (healthy) 4822/tcp               guac-cloudflare-guacd-1
+df9decd3f3c9   abesnier/guacamole:1.5.5-pg15           "/opt/guacamole/bin/…"   About a minute  Up About a minute (healthy) 127.0.0.1:8080->8080/tcp  guac-cloudflare-guacamole-1
+a1b2c3d4e5f6   abesnier/guacd:1.5.5                    "/bin/sh -c '/usr/lo…"   About a minute  Up About a minute (healthy) 4822/tcp               guac-cloudflare-guacd-1
 ```
+
+**Note**: The image names will be `guacamole/guacamole:1.5.5` and `guacamole/guacd:1.5.5` on AMD64 systems, and `abesnier/guacamole:1.5.5-pg15` and `abesnier/guacd:1.5.5` on ARM64 systems like Raspberry Pi.
 
 ### 5. Initial Access & Security
 
@@ -118,7 +130,9 @@ a1b2c3d4e5f6   guacamole/guacd:1.5.5                   "/bin/sh -c '/usr/lo…" 
 ## Configuration Details
 
 ### Guacamole Container
-- **Image**: `guacamole/guacamole:1.5.5`
+- **Image**: 
+  - AMD64: `guacamole/guacamole:1.5.5`
+  - ARM64: `abesnier/guacamole:1.5.5-pg15` (Raspberry Pi)
 - **Port**: 8080 (bound to localhost only for security)
 - **Database**: PostgreSQL 15 (integrated with persistent storage)
 - **Persistence**: Configuration stored in Docker volume `guac_config`
@@ -454,9 +468,11 @@ docker compose -f docker-compose-rdpgw.yaml down -v --remove-orphans
 docker compose -f docker-compose-cloudflare-rdpgw.yaml down -v --remove-orphans
 docker compose -f docker-compose.prod.yaml down -v --remove-orphans
 
-# Remove Docker images
-docker image rm guacamole/guacamole:1.5.5
-docker image rm guacamole/guacd:1.5.5
+# Remove Docker images (architecture-specific)
+docker image rm guacamole/guacamole:1.5.5 2>/dev/null || true          # AMD64
+docker image rm guacamole/guacd:1.5.5 2>/dev/null || true              # AMD64
+docker image rm abesnier/guacamole:1.5.5-pg15 2>/dev/null || true      # ARM64
+docker image rm abesnier/guacd:1.5.5 2>/dev/null || true               # ARM64
 docker image rm cloudflare/cloudflared:2024.11.0
 docker image rm nginx:alpine
 docker image rm postgres:15-alpine

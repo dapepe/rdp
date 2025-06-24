@@ -230,14 +230,16 @@ confirm_removal() {
 remove_guacamole() {
     log_header "Removing Guacamole Services"
     
-    # Stop services
+    # Stop services with volume removal if requested
+    volume_flag=""
+    if [ "$REMOVE_VOLUMES" = true ]; then
+        volume_flag="-v"
+    fi
+    
+    # Stop Guacamole services
     if [ -f "docker-compose-guacamole.yaml" ]; then
         log_info "Stopping Guacamole services..."
-        if [ "$REMOVE_VOLUMES" = true ]; then
-            docker compose -f docker-compose-guacamole.yaml down -v --remove-orphans 2>/dev/null || true
-        else
-            docker compose -f docker-compose-guacamole.yaml down --remove-orphans 2>/dev/null || true
-        fi
+        docker compose -f docker-compose-guacamole.yaml down $volume_flag --remove-orphans 2>/dev/null || true
         log_info "Guacamole services stopped and removed"
     else
         log_warn "docker-compose-guacamole.yaml not found"
@@ -246,7 +248,7 @@ remove_guacamole() {
     # Stop Cloudflare tunnel for Guacamole
     if [ -f "docker-compose-cloudflare.yaml" ]; then
         log_info "Stopping Cloudflare tunnel for Guacamole..."
-        docker compose -f docker-compose-cloudflare.yaml down --remove-orphans 2>/dev/null || true
+        docker compose -f docker-compose-cloudflare.yaml down $volume_flag --remove-orphans 2>/dev/null || true
         log_info "Cloudflare tunnel stopped and removed"
     else
         log_warn "docker-compose-cloudflare.yaml not found"
@@ -255,12 +257,21 @@ remove_guacamole() {
     # Stop production services if they exist
     if [ -f "docker-compose.prod.yaml" ]; then
         log_info "Stopping production services..."
-        if [ "$REMOVE_VOLUMES" = true ]; then
-            docker compose -f docker-compose.prod.yaml down -v --remove-orphans 2>/dev/null || true
-        else
-            docker compose -f docker-compose.prod.yaml down --remove-orphans 2>/dev/null || true
-        fi
+        docker compose -f docker-compose.prod.yaml down $volume_flag --remove-orphans 2>/dev/null || true
         log_info "Production services stopped and removed"
+    fi
+    
+    # Force remove any remaining containers that might have been created
+    log_info "Checking for any remaining Guacamole containers..."
+    remaining_containers=$(docker ps -a --format "{{.Names}}" | grep -E "(guac|postgres|cloudflare)" 2>/dev/null || true)
+    if [ -n "$remaining_containers" ]; then
+        log_info "Found remaining containers, removing them..."
+        echo "$remaining_containers" | while IFS= read -r container; do
+            if [ -n "$container" ]; then
+                log_info "Removing container: $container"
+                docker rm -f "$container" 2>/dev/null || log_warn "Failed to remove container: $container"
+            fi
+        done
     fi
 }
 
@@ -268,14 +279,16 @@ remove_guacamole() {
 remove_rdpgw() {
     log_header "Removing RDP Gateway Services"
     
+    # Stop services with volume removal if requested
+    volume_flag=""
+    if [ "$REMOVE_VOLUMES" = true ]; then
+        volume_flag="-v"
+    fi
+    
     # Stop RDP Gateway services
     if [ -f "docker-compose-rdpgw.yaml" ]; then
         log_info "Stopping RDP Gateway services..."
-        if [ "$REMOVE_VOLUMES" = true ]; then
-            docker compose -f docker-compose-rdpgw.yaml down -v --remove-orphans 2>/dev/null || true
-        else
-            docker compose -f docker-compose-rdpgw.yaml down --remove-orphans 2>/dev/null || true
-        fi
+        docker compose -f docker-compose-rdpgw.yaml down $volume_flag --remove-orphans 2>/dev/null || true
         log_info "RDP Gateway services stopped and removed"
     else
         log_warn "docker-compose-rdpgw.yaml not found"
@@ -284,10 +297,23 @@ remove_rdpgw() {
     # Stop Cloudflare tunnel for RDP Gateway
     if [ -f "docker-compose-cloudflare-rdpgw.yaml" ]; then
         log_info "Stopping Cloudflare tunnel for RDP Gateway..."
-        docker compose -f docker-compose-cloudflare-rdpgw.yaml down --remove-orphans 2>/dev/null || true
+        docker compose -f docker-compose-cloudflare-rdpgw.yaml down $volume_flag --remove-orphans 2>/dev/null || true
         log_info "RDP Gateway Cloudflare tunnel stopped and removed"
     else
         log_warn "docker-compose-cloudflare-rdpgw.yaml not found"
+    fi
+    
+    # Force remove any remaining RDP Gateway containers
+    log_info "Checking for any remaining RDP Gateway containers..."
+    rdp_containers=$(docker ps -a --format "{{.Names}}" | grep -E "(rdp|nginx|freerdp)" 2>/dev/null || true)
+    if [ -n "$rdp_containers" ]; then
+        log_info "Found remaining RDP Gateway containers, removing them..."
+        echo "$rdp_containers" | while IFS= read -r container; do
+            if [ -n "$container" ]; then
+                log_info "Removing container: $container"
+                docker rm -f "$container" 2>/dev/null || log_warn "Failed to remove container: $container"
+            fi
+        done
     fi
     
     # Remove RDP Gateway configuration files
@@ -332,9 +358,13 @@ remove_images() {
     images=(
         "guacamole/guacamole:1.5.5"
         "guacamole/guacd:1.5.5"
+        "abesnier/guacamole:1.5.5-pg15"
+        "abesnier/guacd:1.5.5"
         "cloudflare/cloudflared:2024.11.0"
         "nginx:alpine"
         "postgres:15-alpine"
+        "bolkedebruin/rdpgw:latest"
+        "freerdp/freerdp:latest"
     )
     
     for image in "${images[@]}"; do
@@ -353,22 +383,96 @@ remove_images() {
 remove_networks() {
     log_header "Removing Docker Networks"
     
-    # Networks to remove
-    networks=(
-        "guac-cloudflare_cloudflared"
-        "cloudflared"
+    # Get all networks created by our compose projects
+    log_info "Finding networks created by Guacamole and RDP Gateway projects..."
+    
+    # Networks that might be created by different compose files
+    potential_networks=(
+        "guac-cloudflare_cloudflared"           # Main Guacamole network
+        "rdp_cloudflared"                       # RDP Gateway network (when run independently)
+        "cloudflared"                           # Generic cloudflared network
+        "guac-cloudflare_default"               # Default network for main project
+        "rdp_default"                           # Default network for RDP project
     )
     
-    for network in "${networks[@]}"; do
-        if docker network inspect "$network" >/dev/null 2>&1; then
+    # Also find any networks with our project patterns
+    additional_networks=$(docker network ls --format "{{.Name}}" | grep -E "(guac|rdp|cloudflared)" 2>/dev/null || true)
+    
+    # Combine all potential networks
+    all_networks=(${potential_networks[@]})
+    if [ -n "$additional_networks" ]; then
+        while IFS= read -r network; do
+            all_networks+=("$network")
+        done <<< "$additional_networks"
+    fi
+    
+    # Remove duplicates and sort
+    unique_networks=($(printf "%s\n" "${all_networks[@]}" | sort -u))
+    
+    for network in "${unique_networks[@]}"; do
+        if [ -n "$network" ] && docker network inspect "$network" >/dev/null 2>&1; then
             log_info "Removing network: $network"
             docker network rm "$network" 2>/dev/null || log_warn "Failed to remove network: $network"
-        else
-            log_warn "Network not found: $network"
         fi
     done
     
     log_info "Docker networks removal completed"
+}
+
+# Remove Docker volumes
+remove_volumes() {
+    log_header "Removing Docker Volumes"
+    
+    if [ "$REMOVE_VOLUMES" != true ]; then
+        log_info "Volume removal disabled, skipping..."
+        return 0
+    fi
+    
+    # Get all volumes created by our compose projects
+    log_info "Finding volumes created by Guacamole and RDP Gateway projects..."
+    
+    # Volumes that might be created by different compose files
+    potential_volumes=(
+        "guac_config"                           # Guacamole configuration volume
+        "postgres_data"                         # PostgreSQL data volume
+        "cloudflare_config"                     # Cloudflare tunnel configuration
+        "rdpgw_config"                          # RDP Gateway configuration
+        "rdpgw_certs"                           # RDP Gateway certificates
+        "freerdp_config"                        # FreeRDP configuration
+        "cloudflare_rdpgw_config"              # Cloudflare RDP Gateway config
+        "guac-cloudflare_guac_config"          # Project-prefixed volumes
+        "guac-cloudflare_postgres_data"
+        "guac-cloudflare_cloudflare_config"
+        "rdp_guac_config"                      # RDP project volumes
+        "rdp_postgres_data"
+        "rdp_rdpgw_config"
+        "rdp_rdpgw_certs"
+        "rdp_freerdp_config"
+        "rdp_cloudflare_rdpgw_config"
+    )
+    
+    # Also find any volumes with our project patterns
+    additional_volumes=$(docker volume ls --format "{{.Name}}" | grep -E "(guac|rdp|cloudflare)" 2>/dev/null || true)
+    
+    # Combine all potential volumes
+    all_volumes=(${potential_volumes[@]})
+    if [ -n "$additional_volumes" ]; then
+        while IFS= read -r volume; do
+            all_volumes+=("$volume")
+        done <<< "$additional_volumes"
+    fi
+    
+    # Remove duplicates and sort
+    unique_volumes=($(printf "%s\n" "${all_volumes[@]}" | sort -u))
+    
+    for volume in "${unique_volumes[@]}"; do
+        if [ -n "$volume" ] && docker volume inspect "$volume" >/dev/null 2>&1; then
+            log_info "Removing volume: $volume"
+            docker volume rm "$volume" 2>/dev/null || log_warn "Failed to remove volume: $volume"
+        fi
+    done
+    
+    log_info "Docker volumes removal completed"
 }
 
 # Remove additional files
@@ -410,6 +514,34 @@ remove_additional_files() {
 cleanup_docker() {
     log_header "Cleaning Up Docker System"
     
+    # Force stop any remaining containers that might be related to our projects
+    log_info "Checking for any remaining project containers..."
+    all_containers=$(docker ps -a --format "{{.Names}}" | grep -E "(guac|rdp|postgres|cloudflare|nginx)" 2>/dev/null || true)
+    
+    if [ -n "$all_containers" ]; then
+        log_warn "Found additional containers that may be related to the project:"
+        echo "$all_containers" | while IFS= read -r container; do
+            if [ -n "$container" ]; then
+                log_info "Force stopping and removing: $container"
+                docker stop "$container" 2>/dev/null || true
+                docker rm "$container" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    # Clean up any orphaned volumes
+    log_info "Removing orphaned volumes..."
+    orphaned_volumes=$(docker volume ls --format "{{.Name}}" | grep -E "(guac|rdp|cloudflare)" 2>/dev/null || true)
+    if [ -n "$orphaned_volumes" ]; then
+        echo "$orphaned_volumes" | while IFS= read -r volume; do
+            if [ -n "$volume" ]; then
+                log_info "Removing orphaned volume: $volume"
+                docker volume rm "$volume" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    # Prune system if requested
     if [ "$FORCE" = false ]; then
         read -p "Run Docker system cleanup (removes unused containers, networks, images)? (y/n): " choice
         if [[ $choice == [Yy]* ]]; then
@@ -419,6 +551,9 @@ cleanup_docker() {
         else
             log_info "Skipping Docker cleanup"
         fi
+    else
+        log_info "Running Docker system cleanup in force mode..."
+        docker system prune -af --volumes 2>/dev/null || log_warn "Docker cleanup failed"
     fi
 }
 
@@ -531,6 +666,9 @@ main() {
     if [ "$REMOVE_NETWORKS" = true ]; then
         remove_networks
     fi
+    
+    # Remove volumes (called separately since it has its own logic)
+    remove_volumes
     
     # Additional cleanup
     remove_additional_files
