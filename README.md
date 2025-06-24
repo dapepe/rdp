@@ -53,13 +53,18 @@ Internet → Cloudflare Tunnels → [Guacamole Web UI | RDP Gateway] → Target 
 4. Choose **Cloudflared** as the connector
 5. Copy the tunnel token
 
-### 2. Configure the Tunnel Token
+### 2. Configure Environment Variables
 
-Edit the `docker-compose-cloudflare.yaml` file and replace the placeholder:
+Copy the example environment file and set your tunnel token:
 
-```yaml
-environment:
-  - TUNNEL_TOKEN=your_actual_tunnel_token_here
+```bash
+cp env.example .env
+```
+
+Edit the `.env` file and set your tunnel token:
+
+```bash
+CLOUDFLARE_TUNNEL_TOKEN=your_actual_tunnel_token_here
 ```
 
 ### 3. Quick Start
@@ -93,11 +98,12 @@ docker container ps
 You should see output similar to:
 ```
 CONTAINER ID   IMAGE                                    COMMAND                  CREATED         STATUS                     PORTS                    NAMES
-462e74a50462   cloudflare/cloudflared:2024.11.0        "cloudflared --no-au…"   13 seconds ago  Up 12 seconds             home-guacamole-1
-df9decd3f3c9   abesnier/guacamole:1.5.5-pg15          "/init"                  About a minute  Up About a minute (healthy) 0.0.0.0:8080->8080/tcp  guac-guacamole-1
+462e74a50462   cloudflare/cloudflared:2024.11.0        "cloudflared tunnel …"   13 seconds ago  Up 12 seconds                                      guac-cloudflare-cloudflare-1
+df9decd3f3c9   guacamole/guacamole:1.5.5               "/opt/guacamole/bin/…"   About a minute  Up About a minute (healthy) 127.0.0.1:8080->8080/tcp  guac-cloudflare-guacamole-1
+a1b2c3d4e5f6   guacamole/guacd:1.5.5                   "/bin/sh -c '/usr/lo…"   About a minute  Up About a minute (healthy) 4822/tcp               guac-cloudflare-guacd-1
 ```
 
-### 4. Initial Access & Security
+### 5. Initial Access & Security
 
 #### Guacamole Web Access
 1. Access Guacamole at `http://localhost:8080` (or your tunnel URL)
@@ -113,8 +119,8 @@ df9decd3f3c9   abesnier/guacamole:1.5.5-pg15          "/init"                  A
 
 ### Guacamole Container
 - **Image**: `guacamole/guacamole:1.5.5`
-- **Port**: 8080 (exposed locally for testing)
-- **Database**: PostgreSQL 15 (external or integrated)
+- **Port**: 8080 (bound to localhost only for security)
+- **Database**: PostgreSQL 15 (integrated with persistent storage)
 - **Persistence**: Configuration stored in Docker volume `guac_config`
 - **Network**: Custom bridge network with static IP `172.18.0.3`
 
@@ -139,7 +145,7 @@ Configure Zero Trust policies in Cloudflare to:
 ### 3. Network Security
 - The setup uses a custom Docker network for isolation
 - Guacamole is only accessible through the Cloudflare tunnel
-- Consider removing the port mapping (`8080:8080`) in production
+- Port is bound to localhost only (`127.0.0.1:8080:8080`) for security
 
 ### 4. Regular Updates
 - Keep Docker images updated
@@ -179,12 +185,14 @@ Configure Zero Trust policies in Cloudflare to:
    ```
 
 3. **Update Environment Variables**:
+   Edit your `.env` file and add the DUO configuration:
    ```bash
-   # Add to .env file
+   # DUO Security 2FA Configuration
    DUO_INTEGRATION_KEY=your_integration_key
    DUO_SECRET_KEY=your_secret_key
    DUO_API_HOSTNAME=api-xxxxxxxx.duosecurity.com
    DUO_APPLICATION_KEY=your_40_char_application_key
+   DUO_ENROLLMENT_URL=https://api-xxxxxxxx.duosecurity.com/frame/web/v1/auth
    ```
 
 4. **Restart Services**:
@@ -220,8 +228,9 @@ Edit `extensions/duo-auth.properties` for advanced configuration.
    - Use predefined themes: `theme-dark`, `theme-corporate-blue`, `theme-green`
 
 4. **Configure Messages**:
+   Edit your `.env` file and add the branding configuration:
    ```bash
-   # Add to .env file
+   # Custom Branding Configuration
    LOGIN_MESSAGE=Welcome to Your Secure Remote Access Portal
    ORGANIZATION_NAME=Your Organization
    SUPPORT_EMAIL=support@yourorganization.com
@@ -272,8 +281,9 @@ RDP Gateway provides native RDP client access through Cloudflare tunnels, comple
    ```
 
 4. **Environment Configuration**:
+   Edit your `.env` file and add the RDP Gateway configuration:
    ```bash
-   # Add to .env file
+   # RDP Gateway Configuration
    RDPGW_TUNNEL_TOKEN=your_rdpgw_tunnel_token
    RDPGW_DOMAIN=rdpgw.yourorganization.com
    RDPGW_AUTH_BACKEND=local
@@ -392,7 +402,7 @@ docker compose -f docker-compose-cloudflare.yaml logs cloudflare
 docker container ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 # Test Guacamole connectivity
-curl -I http://localhost:8080
+curl -I http://localhost:8080/guacamole/
 ```
 
 ## Backup and Recovery
@@ -486,6 +496,7 @@ docker system prune -af --volumes
 | `./scripts/monitor.sh` | System monitoring | Health checks and status |
 | `./scripts/uninstall.sh` | Uninstall system | Complete or partial removal |
 | `./scripts/setup-database.sh` | Database setup | Download and setup PostgreSQL schema |
+| `./scripts/fix-network-conflict.sh` | Network troubleshooting | Resolve Docker network conflicts |
 
 ## Production Recommendations
 
@@ -511,21 +522,62 @@ docker system prune -af --volumes
 
 ## Troubleshooting
 
+### Network Issues
+
+#### Docker Network Conflicts
+**Error**: `failed to create network cloudflared: Error response from daemon: invalid pool request: Pool overlaps with other one on this address space`
+
+**Solution**:
+```bash
+# Automated fix
+./scripts/fix-network-conflict.sh
+
+# Manual fix
+docker compose down  # Stop all services
+docker network prune -f  # Clean up networks
+docker compose -f docker-compose-guacamole.yaml up -d  # Start main services first
+```
+
+#### Service Startup Order
+**Important**: Always start services in this order:
+1. **Main Guacamole services** (creates the shared network)
+2. **Cloudflare tunnel for Guacamole**  
+3. **RDP Gateway services** (uses existing network)
+4. **Cloudflare tunnel for RDP Gateway**
+
+**Correct startup**:
+```bash
+# Method 1: Use setup script (recommended)
+./setup.sh
+
+# Method 2: Manual startup
+docker compose -f docker-compose-guacamole.yaml up -d
+sleep 30
+docker compose -f docker-compose-cloudflare.yaml up -d
+docker compose -f docker-compose-rdpgw.yaml up -d
+docker compose -f docker-compose-cloudflare-rdpgw.yaml up -d
+```
+
 ### Common Issues
 
 | Issue | Solution |
 |-------|----------|
+| Network conflict error | Run `./scripts/fix-network-conflict.sh` to resolve |
 | Container won't start | Check Docker logs: `docker compose logs [service]` |
 | Can't access Guacamole | Verify port 8080 is accessible and tunnel is active |
 | RDP Gateway connection fails | Check target server RDP port and firewall settings |
 | DUO 2FA not working | Verify API credentials and connectivity to DUO service |
 | SSL certificate errors | Regenerate certificates or use proper CA certificates |
+| "Pool overlaps" error | Stop services, run network cleanup, restart in order |
 
 ### Diagnostic Commands
 
 ```bash
 # Check all service status
 ./scripts/monitor.sh
+
+# Fix network conflicts
+./scripts/fix-network-conflict.sh
 
 # View logs for specific service
 docker compose -f docker-compose-guacamole.yaml logs guacamole
@@ -537,6 +589,10 @@ curl -f https://rdpgw.yourorganization.com/health
 
 # Check Cloudflare tunnel status
 docker compose -f docker-compose-cloudflare.yaml logs cloudflare
+
+# Check Docker networks
+docker network ls
+docker network inspect guac-cloudflare_cloudflared
 ```
 
 ## File Structure

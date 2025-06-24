@@ -149,6 +149,44 @@ get_tunnel_token() {
     fi
 }
 
+# Handle network conflicts
+handle_network_conflicts() {
+    log_header "Checking for Network Conflicts"
+    
+    # Check if there are any conflicting networks
+    conflicting_networks=$(docker network ls | grep -E "(guac-cloudflare_cloudflared|rdp.*cloudflared)" | wc -l)
+    
+    if [ "$conflicting_networks" -gt 0 ]; then
+        log_warn "Found potentially conflicting Docker networks"
+        echo
+        echo "Existing networks:"
+        docker network ls | grep -E "(guac|cloudflared|rdp)" || echo "None found"
+        echo
+        read -p "Would you like to clean up conflicting networks? (y/n): " cleanup_networks
+        
+        if [ "$cleanup_networks" = "y" ] || [ "$cleanup_networks" = "Y" ]; then
+            log_info "Stopping any running services..."
+            docker compose -f docker-compose-guacamole.yaml down 2>/dev/null || true
+            docker compose -f docker-compose-cloudflare.yaml down 2>/dev/null || true
+            docker compose -f docker-compose-rdpgw.yaml down 2>/dev/null || true
+            docker compose -f docker-compose-cloudflare-rdpgw.yaml down 2>/dev/null || true
+            
+            log_info "Removing conflicting networks..."
+            docker network rm guac-cloudflare_cloudflared 2>/dev/null || true
+            docker network rm rdp_cloudflared 2>/dev/null || true
+            
+            log_info "Cleaning up unused networks..."
+            docker network prune -f
+            
+            log_info "Network conflicts resolved"
+        else
+            log_warn "Proceeding with existing networks - this may cause conflicts"
+        fi
+    else
+        log_info "No network conflicts detected"
+    fi
+}
+
 # Start services
 start_services() {
     log_header "Starting Services"
@@ -211,6 +249,7 @@ setup_optional_features() {
     echo
     read -p "Setup DUO Security 2FA? (y/n): " setup_duo
     read -p "Setup custom branding? (y/n): " setup_branding
+    read -p "Setup RDP Gateway for native RDP clients? (y/n): " setup_rdpgw
     
     if [ "$setup_duo" = "y" ] || [ "$setup_duo" = "Y" ]; then
         log_info "Setting up DUO Security 2FA..."
@@ -229,6 +268,16 @@ setup_optional_features() {
             ./scripts/setup-branding.sh
         else
             log_warn "Branding setup script not found"
+        fi
+    fi
+    
+    if [ "$setup_rdpgw" = "y" ] || [ "$setup_rdpgw" = "Y" ]; then
+        log_info "Setting up RDP Gateway..."
+        if [ -f "./scripts/setup-rdpgw.sh" ]; then
+            chmod +x ./scripts/setup-rdpgw.sh
+            ./scripts/setup-rdpgw.sh
+        else
+            log_warn "RDP Gateway setup script not found"
         fi
     fi
 }
@@ -254,6 +303,7 @@ display_final_info() {
     echo "Optional Features:"
     echo "- Setup DUO 2FA: ./scripts/setup-duo.sh"
     echo "- Setup custom branding: ./scripts/setup-branding.sh"
+    echo "- Setup RDP Gateway: ./scripts/setup-rdpgw.sh"
     echo
     echo "Useful Commands:"
     echo "- Check status: ./scripts/monitor.sh"
@@ -280,6 +330,7 @@ main() {
     setup_environment
     setup_database
     get_tunnel_token
+    handle_network_conflicts
     start_services
     verify_setup
     setup_optional_features
