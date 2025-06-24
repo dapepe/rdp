@@ -277,6 +277,16 @@ RDP Gateway provides native RDP client access through Cloudflare tunnels, comple
    RDPGW_TUNNEL_TOKEN=your_rdpgw_tunnel_token
    RDPGW_DOMAIN=rdpgw.yourorganization.com
    RDPGW_AUTH_BACKEND=local
+   
+   # Port Configuration (optional - defaults shown)
+   RDPGW_PORT=3391                  # RDP Gateway protocol port
+   RDPGW_WEB_PORT=443              # Web interface port
+   RDPGW_PROXY_HTTPS_PORT=8443     # Proxy HTTPS port
+   RDPGW_PROXY_HTTP_PORT=8080      # Proxy HTTP port
+   FREERDP_PORT=3392               # FreeRDP service port
+   
+   # DUO 2FA Configuration (if using)
+   DUO_ENROLLMENT_URL=https://api-xxxxxxxx.duosecurity.com/frame/web/v1/auth
    ```
 
 ### RDP Gateway Features
@@ -406,6 +416,62 @@ docker run --rm -v guac_config:/data -v $(pwd):/backup alpine tar xzf /backup/gu
 3. **Caching**: Enable Guacamole's connection caching
 4. **Monitoring**: Set up container monitoring with Prometheus/Grafana
 
+## 🛑 Stopping and Removing Services
+
+### Stop All Services
+```bash
+# Stop main Guacamole and Cloudflare services
+docker compose -f docker-compose-guacamole.yaml down
+docker compose -f docker-compose-cloudflare.yaml down
+
+# Stop RDP Gateway services (if installed)
+docker compose -f docker-compose-rdpgw.yaml down
+docker compose -f docker-compose-cloudflare-rdpgw.yaml down
+
+# Stop production services (if using)
+docker compose -f docker-compose.prod.yaml down
+```
+
+### Complete Removal (Uninstall)
+```bash
+# Run the uninstall script (recommended)
+./scripts/uninstall.sh
+
+# Or manually remove everything:
+docker compose -f docker-compose-guacamole.yaml down -v --remove-orphans
+docker compose -f docker-compose-cloudflare.yaml down -v --remove-orphans
+docker compose -f docker-compose-rdpgw.yaml down -v --remove-orphans
+docker compose -f docker-compose-cloudflare-rdpgw.yaml down -v --remove-orphans
+docker compose -f docker-compose.prod.yaml down -v --remove-orphans
+
+# Remove Docker images
+docker image rm abesnier/guacamole:1.5.5-pg15
+docker image rm abesnier/guacd:1.5.5
+docker image rm cloudflare/cloudflared:2024.11.0
+docker image rm nginx:alpine
+
+# Remove Docker networks
+docker network rm guac-cloudflare_cloudflared
+
+# Remove unused volumes and containers
+docker system prune -af --volumes
+```
+
+### Partial Removal Options
+```bash
+# Remove only RDP Gateway
+./scripts/uninstall.sh --rdpgw-only
+
+# Remove only custom branding
+./scripts/uninstall.sh --branding-only
+
+# Keep data volumes (preserve configuration)
+./scripts/uninstall.sh --keep-data
+
+# Interactive mode (choose what to remove)
+./scripts/uninstall.sh --interactive
+```
+
 ## Available Setup Scripts
 
 | Script | Purpose | Features |
@@ -417,6 +483,7 @@ docker run --rm -v guac_config:/data -v $(pwd):/backup alpine tar xzf /backup/gu
 | `./scripts/backup.sh` | Backup system | Automated configuration backup |
 | `./scripts/restore.sh` | Restore system | Restore from backups |
 | `./scripts/monitor.sh` | System monitoring | Health checks and status |
+| `./scripts/uninstall.sh` | Uninstall system | Complete or partial removal |
 
 ## Production Recommendations
 

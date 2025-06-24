@@ -35,6 +35,7 @@ services:
       - DUO_SECRET_KEY=${DUO_SECRET_KEY:-}
       - DUO_API_HOSTNAME=${DUO_API_HOSTNAME:-}
       - DUO_APPLICATION_KEY=${DUO_APPLICATION_KEY:-}
+      - DUO_ENROLLMENT_URL=${DUO_ENROLLMENT_URL:-}
       # Custom branding configuration
       - GUACAMOLE_HOME=/opt/guacamole
       - CUSTOM_LOGO_PATH=${CUSTOM_LOGO_PATH:-/opt/guacamole/branding/logo.png}

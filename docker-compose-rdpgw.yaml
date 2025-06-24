@@ -17,8 +17,8 @@ services:
       cloudflared:
         ipv4_address: 172.18.0.6
     ports:
-      - "127.0.0.1:3391:3391"  # RDP Gateway port (localhost only)
-      - "127.0.0.1:443:443"    # HTTPS port for RDP Gateway web interface
+      - "127.0.0.1:${RDPGW_PORT:-3391}:${RDPGW_PORT:-3391}"  # RDP Gateway port (localhost only)
+      - "127.0.0.1:${RDPGW_WEB_PORT:-443}:${RDPGW_WEB_PORT:-443}"    # HTTPS port for RDP Gateway web interface
     volumes:
       - rdpgw_config:/opt/rdpgw/config
       - rdpgw_certs:/opt/rdpgw/certs
@@ -27,8 +27,8 @@ services:
     environment:
       - RDPGW_SERVER_CERT=/opt/rdpgw/certs/server.crt
       - RDPGW_SERVER_KEY=/opt/rdpgw/certs/server.key
-      - RDPGW_SERVER_PORT=3391
-      - RDPGW_WEB_PORT=443
+      - RDPGW_SERVER_PORT=${RDPGW_PORT:-3391}
+      - RDPGW_WEB_PORT=${RDPGW_WEB_PORT:-443}
       - RDPGW_ENABLE_AUTH=true
       - RDPGW_AUTH_BACKEND=${RDPGW_AUTH_BACKEND:-local}
       - RDPGW_HOSTS_FILE=/opt/rdpgw/conf/hosts.yaml
@@ -69,13 +69,13 @@ services:
       cloudflared:
         ipv4_address: 172.18.0.7
     ports:
-      - "127.0.0.1:3392:3392"
+      - "127.0.0.1:${FREERDP_PORT:-3392}:${FREERDP_PORT:-3392}"
     volumes:
       - freerdp_config:/etc/freerdp
       - ./logs:/var/log/freerdp
       - ./rdpgw:/etc/freerdp/conf
     environment:
-      - FREERDP_GATEWAY_PORT=3392
+      - FREERDP_GATEWAY_PORT=${FREERDP_PORT:-3392}
       - FREERDP_LOG_LEVEL=INFO
       - FREERDP_AUTH_BACKEND=file
       - FREERDP_CONFIG_FILE=/etc/freerdp/conf/gateway.conf

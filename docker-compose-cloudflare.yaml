@@ -13,8 +13,8 @@ services:
     restart: unless-stopped
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=<enter cloudflare token here>
-      - TZ=UTC
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      - TZ=${TZ:-UTC}
     networks:
       cloudflared:
         ipv4_address: 172.18.0.2

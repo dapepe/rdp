@@ -45,6 +45,36 @@ create_rdpgw_directories() {
     log_info "RDP Gateway directories created successfully"
 }
 
+# Process Nginx configuration template
+process_nginx_template() {
+    log_header "Processing Nginx Configuration Template"
+    
+    if [ -f "$RDPGW_DIR/nginx/rdpgw.conf.template" ]; then
+        log_info "Processing nginx configuration template..."
+        
+        # Load environment variables from .env file
+        if [ -f ".env" ]; then
+            set -a
+            source .env
+            set +a
+        fi
+        
+        # Set default values if not set
+        export RDPGW_PORT=${RDPGW_PORT:-3391}
+        export RDPGW_WEB_PORT=${RDPGW_WEB_PORT:-443}
+        export RDPGW_DOMAIN=${RDPGW_DOMAIN:-rdpgw.yourorganization.com}
+        
+        # Process template and create nginx configuration
+        envsubst '${RDPGW_PORT},${RDPGW_WEB_PORT},${RDPGW_DOMAIN}' \
+            < "$RDPGW_DIR/nginx/rdpgw.conf.template" \
+            > "$RDPGW_DIR/nginx/default.conf"
+        
+        log_info "Nginx configuration generated from template"
+    else
+        log_warn "Nginx template not found, using static configuration"
+    fi
+}
+
 # Generate SSL certificates
 generate_ssl_certificates() {
     log_header "Generating SSL Certificates"
@@ -303,6 +333,7 @@ main() {
     echo
     
     create_rdpgw_directories
+    process_nginx_template
     generate_ssl_certificates
     setup_user_authentication
     configure_environment
