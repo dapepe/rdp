@@ -330,10 +330,11 @@ remove_images() {
     
     # List of images to remove
     images=(
-        "abesnier/guacamole:1.5.5-pg15"
-        "abesnier/guacd:1.5.5"
+        "guacamole/guacamole:1.5.5"
+        "guacamole/guacd:1.5.5"
         "cloudflare/cloudflared:2024.11.0"
         "nginx:alpine"
+        "postgres:15-alpine"
     )
     
     for image in "${images[@]}"; do

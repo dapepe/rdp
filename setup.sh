@@ -89,9 +89,40 @@ setup_environment() {
     fi
 }
 
+# Setup database schema
+setup_database() {
+    log_header "Setting up Database Schema"
+    
+    if [ -f "./scripts/setup-database.sh" ]; then
+        log_info "Running database setup..."
+        chmod +x ./scripts/setup-database.sh
+        ./scripts/setup-database.sh
+    else
+        log_warn "Database setup script not found, using fallback initialization"
+        mkdir -p init
+    fi
+}
+
 # Get Cloudflare tunnel token
 get_tunnel_token() {
     log_header "Cloudflare Tunnel Configuration"
+    
+    # Check if tunnel token is already configured
+    if [ -f ".env" ]; then
+        current_token=$(grep "^CLOUDFLARE_TUNNEL_TOKEN=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+        
+        if [ -n "$current_token" ] && [ "$current_token" != "your_tunnel_token_here" ]; then
+            log_info "Cloudflare tunnel token already configured in .env file"
+            log_info "Token: ${current_token:0:20}..." # Show only first 20 characters for security
+            echo
+            read -p "Would you like to update the tunnel token? (y/n): " update_token
+            
+            if [ "$update_token" != "y" ] && [ "$update_token" != "Y" ]; then
+                log_info "Keeping existing tunnel token"
+                return 0
+            fi
+        fi
+    fi
     
     echo
     echo "To get your Cloudflare tunnel token:"
@@ -104,8 +135,15 @@ get_tunnel_token() {
     read -p "Enter your Cloudflare tunnel token: " tunnel_token
     
     if [ -n "$tunnel_token" ]; then
-        sed -i.bak "s/your_tunnel_token_here/$tunnel_token/" .env
-        log_info "Tunnel token configured"
+        # Update or set the tunnel token
+        if grep -q "^CLOUDFLARE_TUNNEL_TOKEN=" .env 2>/dev/null; then
+            # Replace existing token
+            sed -i.bak "s/^CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token/" .env
+        else
+            # Add new token
+            echo "CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token" >> .env
+        fi
+        log_info "Tunnel token configured successfully"
     else
         log_warn "No tunnel token provided. Please edit .env file manually."
     fi
@@ -240,6 +278,7 @@ main() {
     check_prerequisites
     create_directories
     setup_environment
+    setup_database
     get_tunnel_token
     start_services
     verify_setup

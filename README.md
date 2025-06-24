@@ -112,9 +112,9 @@ df9decd3f3c9   abesnier/guacamole:1.5.5-pg15          "/init"                  A
 ## Configuration Details
 
 ### Guacamole Container
-- **Image**: `abesnier/guacamole:1.5.5-pg15`
+- **Image**: `guacamole/guacamole:1.5.5`
 - **Port**: 8080 (exposed locally for testing)
-- **Database**: PostgreSQL 15 (included in image)
+- **Database**: PostgreSQL 15 (external or integrated)
 - **Persistence**: Configuration stored in Docker volume `guac_config`
 - **Network**: Custom bridge network with static IP `172.18.0.3`
 
@@ -445,10 +445,11 @@ docker compose -f docker-compose-cloudflare-rdpgw.yaml down -v --remove-orphans
 docker compose -f docker-compose.prod.yaml down -v --remove-orphans
 
 # Remove Docker images
-docker image rm abesnier/guacamole:1.5.5-pg15
-docker image rm abesnier/guacd:1.5.5
+docker image rm guacamole/guacamole:1.5.5
+docker image rm guacamole/guacd:1.5.5
 docker image rm cloudflare/cloudflared:2024.11.0
 docker image rm nginx:alpine
+docker image rm postgres:15-alpine
 
 # Remove Docker networks
 docker network rm guac-cloudflare_cloudflared
@@ -484,6 +485,7 @@ docker system prune -af --volumes
 | `./scripts/restore.sh` | Restore system | Restore from backups |
 | `./scripts/monitor.sh` | System monitoring | Health checks and status |
 | `./scripts/uninstall.sh` | Uninstall system | Complete or partial removal |
+| `./scripts/setup-database.sh` | Database setup | Download and setup PostgreSQL schema |
 
 ## Production Recommendations
 

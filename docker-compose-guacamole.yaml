@@ -7,10 +7,46 @@ networks:
         - subnet: 172.18.0.0/16
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    hostname: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:-guacamole_db}
+      POSTGRES_USER: ${POSTGRES_USER:-guacamole_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-guacamole_password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-guacamole_user} -d ${POSTGRES_DATABASE:-guacamole_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
   guacamole:
-    image: abesnier/guacamole:1.5.5-pg15
+    image: guacamole/guacamole:1.5.5
     hostname: guacamole
     restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      guacd:
+        condition: service_healthy
     networks:
       cloudflared:
         ipv4_address: 172.18.0.3
@@ -25,11 +61,12 @@ services:
     environment:
       - GUACD_HOSTNAME=guacd
       - GUACD_PORT=4822
-      - POSTGRES_HOSTNAME=postgres
-      - POSTGRES_DATABASE=guacamole_db
-      - POSTGRES_USER=guacamole_user
-      - POSTGRES_PASSWORD=guacamole_password
-      - POSTGRES_PORT=5432
+      # PostgreSQL Database Configuration
+      - POSTGRESQL_HOSTNAME=${POSTGRES_HOSTNAME:-postgres}
+      - POSTGRESQL_DATABASE=${POSTGRES_DATABASE:-guacamole_db}
+      - POSTGRESQL_USER=${POSTGRES_USER:-guacamole_user}
+      - POSTGRESQL_PASSWORD=${POSTGRES_PASSWORD:-guacamole_password}
+      - POSTGRESQL_PORT=${POSTGRES_PORT:-5432}
       # DUO Security 2FA Configuration (optional)
       - DUO_INTEGRATION_KEY=${DUO_INTEGRATION_KEY:-}
       - DUO_SECRET_KEY=${DUO_SECRET_KEY:-}
@@ -60,7 +97,7 @@ services:
       - "com.docker.compose.project=guacamole"
 
   guacd:
-    image: abesnier/guacd:1.5.5
+    image: guacamole/guacd:1.5.5
     hostname: guacd
     restart: unless-stopped
     networks:
@@ -84,4 +121,6 @@ services:
 
 volumes:
   guac_config:
+    driver: local
+  postgres_data:
     driver: local
