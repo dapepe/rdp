@@ -5,6 +5,7 @@ networks:
       driver: default
       config:
         - subnet: 172.18.0.0/16
+
 services:
   guacamole:
     image: abesnier/guacamole:1.5.5-pg15
@@ -14,9 +15,72 @@ services:
       cloudflared:
         ipv4_address: 172.18.0.3
     ports: 
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"  # Only bind to localhost for security
     volumes:
       - guac_config:/config
+      - ./logs:/opt/guacamole/logs  # External log directory
+      - ./extensions:/opt/guacamole/extensions  # Custom extensions (DUO, etc.)
+      - ./branding:/opt/guacamole/branding  # Custom branding assets
+      - ./lib:/opt/guacamole/lib  # Additional libraries
+    environment:
+      - GUACD_HOSTNAME=guacd
+      - GUACD_PORT=4822
+      - POSTGRES_HOSTNAME=postgres
+      - POSTGRES_DATABASE=guacamole_db
+      - POSTGRES_USER=guacamole_user
+      - POSTGRES_PASSWORD=guacamole_password
+      - POSTGRES_PORT=5432
+      # DUO Security 2FA Configuration (optional)
+      - DUO_INTEGRATION_KEY=${DUO_INTEGRATION_KEY:-}
+      - DUO_SECRET_KEY=${DUO_SECRET_KEY:-}
+      - DUO_API_HOSTNAME=${DUO_API_HOSTNAME:-}
+      - DUO_APPLICATION_KEY=${DUO_APPLICATION_KEY:-}
+      # Custom branding configuration
+      - GUACAMOLE_HOME=/opt/guacamole
+      - CUSTOM_LOGO_PATH=${CUSTOM_LOGO_PATH:-/opt/guacamole/branding/logo.png}
+      - CUSTOM_THEME=${CUSTOM_THEME:-default}
+      - LOGIN_MESSAGE=${LOGIN_MESSAGE:-Welcome to Guacamole}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/guacamole/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+    labels:
+      - "traefik.enable=false"
+      - "com.docker.compose.project=guacamole"
+
+  guacd:
+    image: abesnier/guacd:1.5.5
+    hostname: guacd
+    restart: unless-stopped
+    networks:
+      cloudflared:
+        ipv4_address: 172.18.0.4
+    volumes:
+      - ./logs:/opt/guacamole/logs
+    healthcheck:
+      test: ["CMD", "pgrep", "guacd"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.25'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
 volumes:
   guac_config:
     driver: local

@@ -5,6 +5,7 @@ networks:
       driver: default
       config:
         - subnet: 172.18.0.0/16
+
 services:
   cloudflare:
     image: cloudflare/cloudflared:2024.11.0
@@ -13,6 +14,36 @@ services:
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=<enter cloudflare token here>
+      - TZ=UTC
     networks:
       cloudflared:
         ipv4_address: 172.18.0.2
+    volumes:
+      - ./logs:/var/log/cloudflared  # External log directory
+      - cloudflare_config:/etc/cloudflared  # Persistent config
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.25'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    labels:
+      - "traefik.enable=false"
+      - "com.docker.compose.project=cloudflare"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  cloudflare_config:
+    driver: local
