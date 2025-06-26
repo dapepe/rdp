@@ -145,7 +145,7 @@ CLOUDFLARE_CPU_LIMIT=0.25
 TZ=Europe/Berlin
 
 # Network Configuration
-DOCKER_NETWORK_NAME=guac-cloudflare_cloudflared
+DOCKER_NETWORK_NAME=rdp_cloudflared
 DOCKER_NETWORK_SUBNET=172.18.0.0/16
 
 # Custom Branding Configuration
@@ -264,7 +264,7 @@ handle_network_conflicts() {
     log_header "Checking for Network Conflicts"
     
     # Check if there are any conflicting networks
-    conflicting_networks=$(docker network ls | grep -E "(guac-cloudflare_cloudflared|rdp.*cloudflared)" | wc -l)
+    conflicting_networks=$(docker network ls | grep -E "(rdp_cloudflared|.*cloudflared)" | wc -l)
     
     if [ "$conflicting_networks" -gt 0 ]; then
         log_warn "Found potentially conflicting Docker networks"
@@ -281,7 +281,7 @@ handle_network_conflicts() {
             docker compose -f docker-compose-rdpgw.yaml down 2>/dev/null || true
             
             log_info "Removing conflicting networks..."
-            docker network rm guac-cloudflare_cloudflared 2>/dev/null || true
+            docker network rm rdp_cloudflared 2>/dev/null || true
             docker network rm rdp_cloudflared 2>/dev/null || true
             
             log_info "Cleaning up unused networks..."

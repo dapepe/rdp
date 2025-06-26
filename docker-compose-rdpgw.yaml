@@ -1,11 +1,9 @@
 # RDP Gateway Docker Compose Configuration
 # This provides native RDP client access through Cloudflare tunnel
 
-version: '3.8'
-
 networks:
   default:
-    name: guac-cloudflare_cloudflared
+    name: rdp_cloudflared
     external: true
 
 services:

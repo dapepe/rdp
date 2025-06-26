@@ -382,8 +382,8 @@ remove_networks() {
     
     # Networks that might be created by different compose files
     potential_networks=(
-        "guac-cloudflare_cloudflared"           # Main Guacamole network
-        "rdp_cloudflared"                       # RDP Gateway network (when run independently)
+        "rdp_cloudflared"                       # Main network (current)
+        "guac-cloudflare_cloudflared"           # Legacy network name
         "cloudflared"                           # Generic cloudflared network
         "guac-cloudflare_default"               # Default network for main project
         "rdp_default"                           # Default network for RDP project

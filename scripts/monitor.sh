@@ -133,27 +133,27 @@ else
 fi
 
 # Check Docker network
-if docker network inspect guac-cloudflare_cloudflared >/dev/null 2>&1; then
-    log_info "✓ Docker network 'guac-cloudflare_cloudflared' exists"
+if docker network inspect rdp_cloudflared >/dev/null 2>&1; then
+    log_info "✓ Docker network 'rdp_cloudflared' exists"
     
     # Show network details
-    subnet=$(docker network inspect guac-cloudflare_cloudflared --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}')
+    subnet=$(docker network inspect rdp_cloudflared --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}')
     echo "  Network subnet: $subnet"
     
     # Show connected containers  
-    container_count=$(docker network inspect guac-cloudflare_cloudflared --format='{{len .Containers}}')
+    container_count=$(docker network inspect rdp_cloudflared --format='{{len .Containers}}')
     echo "  Connected containers: $container_count"
 else
-    log_error "Docker network 'guac-cloudflare_cloudflared' not found"
+    log_error "Docker network 'rdp_cloudflared' not found"
     echo "  This may indicate network conflicts or services not started."
     echo "  Run './scripts/fix-network-conflict.sh' to resolve."
 fi
 
 # Check for conflicting networks
-conflicting_networks=$(docker network ls | grep -E "(rdp.*cloudflared|cloudflared)" | grep -v "guac-cloudflare_cloudflared" | wc -l)
+conflicting_networks=$(docker network ls | grep -E "(.*cloudflared)" | grep -v "rdp_cloudflared" | wc -l)
 if [ "$conflicting_networks" -gt 0 ]; then
     log_warn "Found potentially conflicting networks:"
-    docker network ls | grep -E "(rdp.*cloudflared|cloudflared)" | grep -v "guac-cloudflare_cloudflared" | sed 's/^/  /'
+    docker network ls | grep -E "(.*cloudflared)" | grep -v "rdp_cloudflared" | sed 's/^/  /'
     echo "  Consider running './scripts/fix-network-conflict.sh' to clean up."
 else
     log_info "✓ No conflicting networks detected"

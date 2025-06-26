@@ -73,9 +73,9 @@ remove_networks() {
     
     # Remove networks that might conflict
     networks_to_remove=(
-        "guac-cloudflare_cloudflared"
         "rdp_cloudflared" 
         "cloudflared"
+        "guac-cloudflare_cloudflared"  # legacy name
     )
     
     for network in "${networks_to_remove[@]}"; do
@@ -107,7 +107,7 @@ show_network_info() {
     echo "=========================================="
     echo
     echo "Main Guacamole Network:"
-    echo "  Name: guac-cloudflare_cloudflared"
+    echo "  Name: rdp_cloudflared"
     echo "  Subnet: 172.18.0.0/16"
     echo "  Created by: docker-compose-guacamole.yaml"
     echo
@@ -180,12 +180,12 @@ verify_setup() {
     echo "Running containers:"
     docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | head -15
     
-    if docker network inspect guac-cloudflare_cloudflared >/dev/null 2>&1; then
+    if docker network inspect rdp_cloudflared >/dev/null 2>&1; then
         echo
         log_info "✓ Network successfully created and configured"
         
         # Show network subnet
-        subnet=$(docker network inspect guac-cloudflare_cloudflared --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}')
+        subnet=$(docker network inspect rdp_cloudflared --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}')
         echo "Network subnet: $subnet"
     else
         log_warn "Main network not found - this is normal if no services are running"
