@@ -52,8 +52,8 @@ stop_services() {
         "docker-compose-guacamole.yaml"
         "docker-compose-cloudflare.yaml"
         "docker-compose-rdpgw.yaml"
-        "docker-compose-cloudflare-rdpgw.yaml"
-        "docker-compose.prod.yaml"
+        # Removed: "docker-compose-cloudflare-rdpgw.yaml" - using unified tunnel
+        # Removed: "docker-compose.prod.yaml" - not used in current setup
     )
     
     for service in "${services[@]}"; do
@@ -159,8 +159,7 @@ start_services() {
             log_info "Waiting for RDP Gateway to initialize..."
             sleep 20
             
-            log_info "Starting Cloudflare tunnel for RDP Gateway..."
-            docker compose -f docker-compose-cloudflare-rdpgw.yaml up -d
+            log_info "RDP Gateway uses unified Cloudflare tunnel - no separate tunnel needed"
             
             log_info "RDP Gateway services started successfully"
         fi

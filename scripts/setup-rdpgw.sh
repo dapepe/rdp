@@ -150,12 +150,11 @@ configure_environment() {
         if ! grep -q "RDPGW_" .env; then
             cat >> .env << EOF
 
-# RDP Gateway Configuration
+# RDP Gateway Configuration (uses unified Cloudflare tunnel)
 RDPGW_AUTH_BACKEND=local
 RDPGW_LOG_LEVEL=info
 RDPGW_IDLE_TIMEOUT=1800
 RDPGW_SESSION_TIMEOUT=28800
-RDPGW_TUNNEL_TOKEN=your_rdpgw_tunnel_token_here
 
 EOF
             log_info "RDP Gateway configuration added to .env file"
@@ -169,29 +168,23 @@ EOF
 
 # Setup Cloudflare tunnel for RDP Gateway
 setup_cloudflare_tunnel() {
-    log_header "Setting up Cloudflare Tunnel for RDP Gateway"
+    log_header "Cloudflare Tunnel Configuration for RDP Gateway"
     
     echo
-    echo "To set up RDP Gateway with Cloudflare tunnel:"
-    echo "1. Create a new tunnel in Cloudflare dashboard"
-    echo "2. Configure the tunnel to point to your RDP Gateway"
-    echo "3. Set up the following services:"
-    echo "   - HTTPS (port 443) -> rdpgw-proxy:443"
-    echo "   - RDP Gateway (port 3391) -> rdpgw:3391"
+    echo "RDP Gateway will use the existing unified Cloudflare tunnel."
+    echo
+    echo "To configure in your Cloudflare dashboard:"
+    echo "1. Add a route to your existing tunnel:"
+    echo "   - Subdomain: rdpgw"
+    echo "   - Domain: your domain"
+    echo "   - Service: rdp://172.18.0.5:3391"
+    echo
+    echo "2. Your RDP Gateway will be accessible at:"
+    echo "   - Native RDP clients: rdpgw.yourdomain.com:3391"
+    echo "   - Web interface: https://rdpgw.yourdomain.com"
     echo
     
-    read -p "Enter your RDP Gateway tunnel token: " rdpgw_tunnel_token
-    
-    if [ -n "$rdpgw_tunnel_token" ] && [ -f ".env" ]; then
-        if grep -q "RDPGW_TUNNEL_TOKEN=" .env; then
-            sed -i.bak "s/RDPGW_TUNNEL_TOKEN=.*/RDPGW_TUNNEL_TOKEN=$rdpgw_tunnel_token/" .env
-        else
-            echo "RDPGW_TUNNEL_TOKEN=$rdpgw_tunnel_token" >> .env
-        fi
-        log_info "RDP Gateway tunnel token configured"
-    else
-        log_warn "No tunnel token provided or .env file not found"
-    fi
+    log_info "RDP Gateway will use the unified tunnel configuration"
 }
 
 # Configure hosts and permissions
@@ -256,21 +249,21 @@ start_rdpgw_services() {
         log_info "Starting RDP Gateway..."
         docker compose -f docker-compose-rdpgw.yaml up -d
         
-        log_info "Starting Cloudflare tunnel for RDP Gateway..."
-        docker compose -f docker-compose-cloudflare-rdpgw.yaml up -d
+        log_info "RDP Gateway will use the existing unified Cloudflare tunnel"
         
         sleep 10
         
         # Check if services are running
         if docker compose -f docker-compose-rdpgw.yaml ps | grep -q "Up"; then
             log_info "RDP Gateway services started successfully"
+            log_info "Configure your Cloudflare tunnel to route rdpgw.yourdomain.com to rdp://172.18.0.5:3391"
         else
             log_error "Failed to start RDP Gateway services"
         fi
     else
         log_info "Services not started. You can start them later with:"
         echo "docker compose -f docker-compose-rdpgw.yaml up -d"
-        echo "docker compose -f docker-compose-cloudflare-rdpgw.yaml up -d"
+        log_info "Remember to add the RDP Gateway route to your existing Cloudflare tunnel"
     fi
 }
 

@@ -294,14 +294,8 @@ remove_rdpgw() {
         log_warn "docker-compose-rdpgw.yaml not found"
     fi
     
-    # Stop Cloudflare tunnel for RDP Gateway
-    if [ -f "docker-compose-cloudflare-rdpgw.yaml" ]; then
-        log_info "Stopping Cloudflare tunnel for RDP Gateway..."
-        docker compose -f docker-compose-cloudflare-rdpgw.yaml down $volume_flag --remove-orphans 2>/dev/null || true
-        log_info "RDP Gateway Cloudflare tunnel stopped and removed"
-    else
-        log_warn "docker-compose-cloudflare-rdpgw.yaml not found"
-    fi
+    # RDP Gateway uses the unified Cloudflare tunnel - no separate tunnel to stop
+    log_info "RDP Gateway uses unified Cloudflare tunnel (no separate tunnel file)"
     
     # Force remove any remaining RDP Gateway containers
     log_info "Checking for any remaining RDP Gateway containers..."

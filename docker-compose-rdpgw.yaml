@@ -4,9 +4,9 @@
 version: '3.8'
 
 networks:
-  cloudflared:
-    external: true
+  default:
     name: guac-cloudflare_cloudflared
+    external: true
 
 services:
   rdpgw:
@@ -14,7 +14,7 @@ services:
     hostname: rdpgw
     restart: unless-stopped
     networks:
-      cloudflared:
+      default:
         ipv4_address: 172.18.0.5
     ports:
       - "127.0.0.1:${RDPGW_PORT:-3391}:${RDPGW_PORT:-3391}"  # RDP Gateway port (localhost only)
@@ -66,7 +66,7 @@ services:
     hostname: freerdp-gateway
     restart: unless-stopped
     networks:
-      cloudflared:
+      default:
         ipv4_address: 172.18.0.6
     ports:
       - "127.0.0.1:${FREERDP_PORT:-3392}:${FREERDP_PORT:-3392}"

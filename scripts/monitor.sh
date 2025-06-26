@@ -76,13 +76,8 @@ fi
 
 echo
 
-# RDP Gateway Cloudflare tunnel (if available)
-if [ -f "docker-compose-cloudflare-rdpgw.yaml" ] && docker compose -f docker-compose-cloudflare-rdpgw.yaml ps | grep -q "Up"; then
-    log_info "RDP Gateway Cloudflare tunnel is running"
-    docker compose -f docker-compose-cloudflare-rdpgw.yaml ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
-elif [ -f "docker-compose-cloudflare-rdpgw.yaml" ]; then
-    log_warn "RDP Gateway Cloudflare tunnel is not running"
-fi
+# RDP Gateway uses unified Cloudflare tunnel
+log_info "RDP Gateway tunnel: Unified with main Cloudflare service"
 
 echo
 
