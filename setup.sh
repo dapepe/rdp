@@ -160,13 +160,14 @@ RDPGW_AUTH_BACKEND=local
 RDPGW_LOG_LEVEL=info
 RDPGW_IDLE_TIMEOUT=1800
 RDPGW_SESSION_TIMEOUT=28800
-RDPGW_TUNNEL_TOKEN=your_rdpgw_tunnel_token_here
+RDPGW_TUNNEL_TOKEN=your_tunnel_token_here
 RDPGW_DOMAIN=rdpgw.yourorganization.com
 RDPGW_PORT=3391
 RDPGW_WEB_PORT=443
 RDPGW_PROXY_HTTPS_PORT=8443
 RDPGW_PROXY_HTTP_PORT=8080
 FREERDP_PORT=3392
+RDPGW_IP=172.18.0.5
 EOF
         
         log_info "Environment file created with secure passwords and correct images"
@@ -243,17 +244,19 @@ get_tunnel_token() {
     read -p "Enter your Cloudflare tunnel token: " tunnel_token
     
     if [ -n "$tunnel_token" ]; then
-        # Update or set the tunnel token
+        # Update or set the tunnel token for both Guacamole and RDP Gateway
         if grep -q "^CLOUDFLARE_TUNNEL_TOKEN=" .env 2>/dev/null; then
-            # Replace existing token using grep and temp file
-            grep -v "^CLOUDFLARE_TUNNEL_TOKEN=" .env > .env.tmp
+            # Replace existing tokens using grep and temp file
+            grep -v "^CLOUDFLARE_TUNNEL_TOKEN=" .env | grep -v "^RDPGW_TUNNEL_TOKEN=" > .env.tmp
             echo "CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token" >> .env.tmp
+            echo "RDPGW_TUNNEL_TOKEN=$tunnel_token" >> .env.tmp
             mv .env.tmp .env
         else
-            # Add new token
+            # Add new tokens
             echo "CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token" >> .env
+            echo "RDPGW_TUNNEL_TOKEN=$tunnel_token" >> .env
         fi
-        log_info "Tunnel token configured successfully"
+        log_info "Tunnel token configured for both Guacamole and RDP Gateway"
     else
         log_warn "No tunnel token provided. Please edit .env file manually."
     fi
@@ -350,6 +353,52 @@ verify_setup() {
     log_info "Setup verification completed"
 }
 
+# Display network configuration
+display_network_info() {
+    log_header "Network Configuration Summary"
+    
+    echo
+    echo "========================================="
+    echo "DOCKER NETWORK CONFIGURATION"
+    echo "========================================="
+    echo
+    echo "Network Subnet: 172.18.0.0/16"
+    echo "Network Name: rdp_cloudflared"
+    echo
+    echo "Service IP Addresses:"
+    echo "  ├── Cloudflare Tunnel:  172.18.0.2"
+    echo "  ├── Guacamole Web:      172.18.0.3:8080"
+    echo "  └── RDP Gateway:        172.18.0.5:3391"
+    echo
+    echo "Port Mappings:"
+    echo "  ├── Guacamole Web:      127.0.0.1:8080 → 172.18.0.3:8080"
+    echo "  ├── RDP Gateway:        0.0.0.0:3391 → 172.18.0.5:3391"
+    echo "  └── RDP Proxy (HTTP):   0.0.0.0:8080 → 172.18.0.5:8080"
+    echo
+    echo "Access URLs (via Cloudflare Tunnel):"
+    echo "  ├── Guacamole: https://your-tunnel-domain.com/"
+    echo "  └── RDP Gateway: rdp://your-tunnel-domain.com:3391"
+    echo
+    echo "Local Access (for testing):"
+    echo "  ├── Guacamole: http://localhost:8080/guacamole/"
+    echo "  └── RDP Gateway: rdp://localhost:3391"
+    echo
+    echo "Default Credentials:"
+    echo "  ├── Guacamole: guacadmin / guacadmin"
+    echo "  └── RDP Gateway: configured in rdpgw/users.yaml"
+    echo
+    echo "========================================="
+    echo "IMPORTANT SECURITY NOTES"
+    echo "========================================="
+    echo
+    echo "1. Change default Guacamole password immediately!"
+    echo "2. Configure RDP Gateway users in rdpgw/users.yaml"
+    echo "3. Configure RDP hosts in rdpgw/hosts.yaml"
+    echo "4. All external access goes through Cloudflare Tunnel"
+    echo "5. Local ports are bound to localhost for security"
+    echo
+}
+
 # Setup optional features
 setup_optional_features() {
     log_header "Optional Features Setup"
@@ -444,6 +493,7 @@ main() {
     handle_network_conflicts
     start_services
     verify_setup
+    display_network_info
     setup_optional_features
     display_final_info
 }
