@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
     networks:
       cloudflared:
-        ipv4_address: 172.18.0.6
+        ipv4_address: 172.18.0.5
     ports:
       - "127.0.0.1:${RDPGW_PORT:-3391}:${RDPGW_PORT:-3391}"  # RDP Gateway port (localhost only)
       - "127.0.0.1:${RDPGW_WEB_PORT:-443}:${RDPGW_WEB_PORT:-443}"    # HTTPS port for RDP Gateway web interface
@@ -67,7 +67,7 @@ services:
     restart: unless-stopped
     networks:
       cloudflared:
-        ipv4_address: 172.18.0.7
+        ipv4_address: 172.18.0.6
     ports:
       - "127.0.0.1:${FREERDP_PORT:-3392}:${FREERDP_PORT:-3392}"
     volumes:

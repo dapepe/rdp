@@ -53,19 +53,158 @@ Internet → Cloudflare Tunnels → [Guacamole Web UI | RDP Gateway] → Target 
 - **DUO 2FA**: Optional two-factor authentication layer
 - **Custom Network**: Isolated Docker bridge network (172.18.0.0/16)
 
+## Network Configuration
+
+### Docker Network Architecture
+
+All services operate within an isolated Docker bridge network to ensure security and proper communication:
+
+```
+Docker Network: rdp_cloudflared (172.18.0.0/16)
+├── 172.18.0.2 → Cloudflare Tunnel (cloudflare)
+├── 172.18.0.3 → Guacamole Web Interface (guacamole)
+└── 172.18.0.5 → RDP Gateway (rdpgw)
+```
+
+### Service Details
+
+| Service | Container Name | Internal IP | Internal Port | External Port | Protocol |
+|---------|---------------|-------------|---------------|---------------|----------|
+| **Cloudflare Tunnel** | `cloudflare` | `172.18.0.2` | N/A | N/A | HTTP/HTTPS Proxy |
+| **Guacamole Web** | `guacamole` | `172.18.0.3` | `8080` | `127.0.0.1:8080` | HTTP |
+| **RDP Gateway** | `rdpgw` | `172.18.0.5` | `3391` | `0.0.0.0:3391` | RDP/HTTP |
+
+### Port Mappings
+
+#### Guacamole Web Interface
+- **Internal**: `172.18.0.3:8080`
+- **External**: `127.0.0.1:8080` (localhost only for security)
+- **Cloudflare**: `https://guac.yourcompany.com/guacamole`
+
+#### RDP Gateway (Optional)
+- **Internal**: `172.18.0.5:3391` (RDP protocol)
+- **External**: `0.0.0.0:3391` (all interfaces)
+- **Web Interface**: `172.18.0.5:8080` (management)
+- **Cloudflare**: `https://rdpgw.yourcompany.com`
+
+### Access Methods
+
+#### 1. External Access (Recommended)
+- **Guacamole**: `https://guac.yourcompany.com/guacamole`
+- **RDP Gateway**: `rdp://rdpgw.yourcompany.com:3391`
+
+#### 2. Local Access (Testing/Development)
+- **Guacamole**: `http://localhost:8080/guacamole`
+- **RDP Gateway**: `rdp://localhost:3391`
+
+### Security Features
+
+1. **Network Isolation**: All services communicate through isolated Docker network
+2. **Localhost Binding**: Guacamole bound to localhost only (`127.0.0.1:8080`)
+3. **Cloudflare Protection**: All external traffic routed through Cloudflare Zero Trust
+4. **No Direct Internet Exposure**: No services directly exposed to the internet
+5. **Tunnel Authentication**: Cloudflare handles authentication and access control
+
+### Firewall Configuration
+
+No firewall rules required on the host system:
+- ✅ **Cloudflare Tunnel**: Outbound HTTPS connections only
+- ✅ **Guacamole**: Localhost binding prevents external access
+- ✅ **RDP Gateway**: Optional, can be disabled if not needed
+- ✅ **No Inbound Rules**: All access via Cloudflare tunnels
+
+### Network Troubleshooting
+
+#### Check Network Status
+```bash
+# View Docker networks
+docker network ls
+
+# Inspect the network
+docker network inspect rdp_cloudflared
+
+# Check service IPs
+docker inspect $(docker ps -q) | grep -E "(NetworkMode|IPAddress)"
+
+# Test internal connectivity
+docker exec -it guac-cloudflare-guacamole-1 ping 172.18.0.2
+```
+
+#### Common Network Issues
+- **Service not accessible**: Verify correct IP addresses and ports
+- **Network conflicts**: Run `./scripts/fix-network-conflict.sh`
+- **Tunnel not working**: Check Cloudflare dashboard for tunnel status
+- **Connection refused**: Ensure services are healthy with `docker ps`
+
 ## Setup Instructions
 
 ### 1. Create Cloudflare Tunnel
 
-1. Log into your Cloudflare dashboard
-2. Navigate to **Zero Trust** → **Access** → **Tunnels**
-3. Click **Create a tunnel**
-4. Choose **Cloudflared** as the connector
-5. Copy the tunnel token
+1. **Log into Cloudflare Dashboard**
+   - Visit [https://dash.cloudflare.com](https://dash.cloudflare.com)
+   - Select your domain (must be managed by Cloudflare)
 
-### 2. Configure Environment Variables
+2. **Navigate to Zero Trust**
+   - Go to **Zero Trust** → **Access** → **Tunnels**
+   - Click **Create a tunnel**
 
-Copy the example environment file and set your tunnel token:
+3. **Create the Tunnel**
+   - Choose **Cloudflared** as the connector
+   - Give your tunnel a descriptive name (e.g., "guacamole-rdp-gateway")
+   - Click **Save tunnel**
+
+4. **Configure Tunnel Endpoints** (in one tunnel)
+   
+   **Add both routes to the same tunnel:**
+   
+   - **Route 1 - Guacamole Web Interface**:
+     - **Subdomain**: `guac` (or your preference)
+     - **Domain**: Your domain (e.g., `yourcompany.com`)
+     - **Service**: `http://172.18.0.3:8080`
+     - **Path**: `/guacamole` (optional, for path-based routing)
+   
+   - **Route 2 - RDP Gateway** (optional):
+     - **Subdomain**: `rdpgw`
+     - **Domain**: Your domain
+     - **Service**: `rdp://172.18.0.5:3391`
+   
+   **Result**: One tunnel, multiple routes to different internal services.
+
+5. **Copy the Tunnel Token**
+   - After saving, copy the tunnel token that appears
+   - This token will be used for both services (unified configuration)
+   - Keep this token secure as it provides access to your services
+
+### Example Tunnel Configuration
+
+Your final access points will be:
+- **Guacamole**: `https://guac.yourcompany.com/guacamole` (web interface)
+- **RDP Gateway**: `rdpgw.yourcompany.com:3391` (RDP protocol for native clients)
+
+### 2. Automated Setup (Recommended)
+
+The setup script will automatically configure everything, including the tunnel token:
+
+```bash
+# Run the interactive setup script
+./setup.sh
+```
+
+The script will:
+1. Detect your system architecture (AMD64/ARM64)
+2. Create the `.env` file with secure passwords
+3. Prompt for your Cloudflare tunnel token
+4. Configure both Guacamole and RDP Gateway to use the same tunnel
+5. Start all services in the correct order
+6. **Display detailed network configuration** including:
+   - Service IP addresses and ports
+   - Access URLs (local and Cloudflare)
+   - Default credentials
+   - Security recommendations
+
+### 3. Manual Environment Configuration (Optional)
+
+If you prefer manual setup, copy the example environment file:
 
 ```bash
 cp env.example .env
@@ -74,31 +213,36 @@ cp env.example .env
 Edit the `.env` file and set your tunnel token:
 
 ```bash
+# Single tunnel token routes to both Guacamole and RDP Gateway
 CLOUDFLARE_TUNNEL_TOKEN=your_actual_tunnel_token_here
 ```
 
-### 3. Quick Start
+**Important**: One tunnel handles both services by routing to different internal IPs:
+- Guacamole: `http://172.18.0.3:8080`
+- RDP Gateway: `rdp://172.18.0.5:3391`
 
-**Automated Setup** (Recommended):
-```bash
-# Run the comprehensive setup script
-./setup.sh
-```
+### 4. Alternative Manual Setup
 
-**Manual Setup**:
+**If using the automated setup above, skip this section.**
+
+**Manual Docker Compose Setup**:
 ```bash
-# Start Guacamole
+# Ensure .env file is configured with tunnel token first
+# Then start services in correct order:
+
+# 1. Start Guacamole (creates shared network)
 docker compose -f docker-compose-guacamole.yaml up -d
 
-# Start Cloudflare tunnel
+# 2. Start unified Cloudflare tunnel (routes to both services)
 docker compose -f docker-compose-cloudflare.yaml up -d
 
-# Optional: Start RDP Gateway
+# 3. Optional: Start RDP Gateway (uses existing network and tunnel)
 docker compose -f docker-compose-rdpgw.yaml up -d
-docker compose -f docker-compose-cloudflare-rdpgw.yaml up -d
 ```
 
-### 4. Verify Services
+**Important**: Start services in this exact order to avoid network conflicts.
+
+### 5. Verify Services
 
 Check if containers are running:
 ```bash
@@ -115,7 +259,7 @@ a1b2c3d4e5f6   abesnier/guacd:1.5.5                    "/bin/sh -c '/usr/lo…" 
 
 **Note**: The image names will be `guacamole/guacamole:1.5.5` and `guacamole/guacd:1.5.5` on AMD64 systems, and `abesnier/guacamole:1.5.5-pg15` and `abesnier/guacd:1.5.5` on ARM64 systems like Raspberry Pi.
 
-### 5. Initial Access & Security
+### 6. Initial Access & Security
 
 #### Guacamole Web Access
 1. Access Guacamole at `http://localhost:8080` (or your tunnel URL)

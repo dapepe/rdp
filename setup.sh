@@ -155,12 +155,11 @@ LOGIN_MESSAGE=Welcome to Your Secure Remote Access Portal
 ORGANIZATION_NAME=Your Organization
 SUPPORT_EMAIL=support@yourorganization.com
 
-# RDP Gateway Configuration
+# RDP Gateway Configuration  
 RDPGW_AUTH_BACKEND=local
 RDPGW_LOG_LEVEL=info
 RDPGW_IDLE_TIMEOUT=1800
 RDPGW_SESSION_TIMEOUT=28800
-RDPGW_TUNNEL_TOKEN=your_tunnel_token_here
 RDPGW_DOMAIN=rdpgw.yourorganization.com
 RDPGW_PORT=3391
 RDPGW_WEB_PORT=443
@@ -244,19 +243,17 @@ get_tunnel_token() {
     read -p "Enter your Cloudflare tunnel token: " tunnel_token
     
     if [ -n "$tunnel_token" ]; then
-        # Update or set the tunnel token for both Guacamole and RDP Gateway
+        # Update or set the tunnel token (used by both services)
         if grep -q "^CLOUDFLARE_TUNNEL_TOKEN=" .env 2>/dev/null; then
-            # Replace existing tokens using grep and temp file
-            grep -v "^CLOUDFLARE_TUNNEL_TOKEN=" .env | grep -v "^RDPGW_TUNNEL_TOKEN=" > .env.tmp
+            # Replace existing token using grep and temp file
+            grep -v "^CLOUDFLARE_TUNNEL_TOKEN=" .env > .env.tmp
             echo "CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token" >> .env.tmp
-            echo "RDPGW_TUNNEL_TOKEN=$tunnel_token" >> .env.tmp
             mv .env.tmp .env
         else
-            # Add new tokens
+            # Add new token
             echo "CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token" >> .env
-            echo "RDPGW_TUNNEL_TOKEN=$tunnel_token" >> .env
         fi
-        log_info "Tunnel token configured for both Guacamole and RDP Gateway"
+        log_info "Tunnel token configured for unified access to both services"
     else
         log_warn "No tunnel token provided. Please edit .env file manually."
     fi
@@ -282,7 +279,6 @@ handle_network_conflicts() {
             docker compose -f docker-compose-guacamole.yaml down 2>/dev/null || true
             docker compose -f docker-compose-cloudflare.yaml down 2>/dev/null || true
             docker compose -f docker-compose-rdpgw.yaml down 2>/dev/null || true
-            docker compose -f docker-compose-cloudflare-rdpgw.yaml down 2>/dev/null || true
             
             log_info "Removing conflicting networks..."
             docker network rm guac-cloudflare_cloudflared 2>/dev/null || true
@@ -315,7 +311,7 @@ start_services() {
     log_info "Waiting for Guacamole to be ready..."
     sleep 30
     
-    log_info "Starting Cloudflare tunnel..."
+    log_info "Starting unified Cloudflare tunnel (handles both Guacamole and RDP Gateway)..."
     docker compose -f docker-compose-cloudflare.yaml up -d
     
     log_info "Services started successfully"
@@ -366,7 +362,7 @@ display_network_info() {
     echo "Network Name: rdp_cloudflared"
     echo
     echo "Service IP Addresses:"
-    echo "  ├── Cloudflare Tunnel:  172.18.0.2"
+    echo "  ├── Cloudflare Tunnel:  172.18.0.2 (unified tunnel for both services)"
     echo "  ├── Guacamole Web:      172.18.0.3:8080"
     echo "  └── RDP Gateway:        172.18.0.5:3391"
     echo
