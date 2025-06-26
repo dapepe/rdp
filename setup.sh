@@ -111,12 +111,12 @@ setup_environment() {
         cp env.example .env
         
         # Set architecture-specific images
-        sed -i.bak "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
-        sed -i.bak "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
+        sed -i "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
+        sed -i "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
         
         # Generate secure passwords
         POSTGRES_PASSWORD=$(openssl rand -base64 32)
-        sed -i.bak "s/guacamole_password/$POSTGRES_PASSWORD/" .env
+        sed -i "s/guacamole_password/$POSTGRES_PASSWORD/" .env
         
         log_info "Environment file created with secure passwords and correct images"
         log_warn "Please edit .env file and add your Cloudflare tunnel token"
@@ -126,12 +126,12 @@ setup_environment() {
         # Update images if they're using defaults
         if grep -q "abesnier/guacamole:1.5.5-pg15" .env && [ "$GUACAMOLE_IMAGE" != "abesnier/guacamole:1.5.5-pg15" ]; then
             log_info "Updating images for your architecture..."
-            sed -i.bak "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
-            sed -i.bak "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
+            sed -i "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
+            sed -i "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
         elif grep -q "guacamole/guacamole:1.5.5" .env && [ "$GUACAMOLE_IMAGE" != "guacamole/guacamole:1.5.5" ]; then
             log_info "Updating images for your architecture..."
-            sed -i.bak "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
-            sed -i.bak "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
+            sed -i "s|^GUACAMOLE_IMAGE=.*|GUACAMOLE_IMAGE=$GUACAMOLE_IMAGE|" .env
+            sed -i "s|^GUACD_IMAGE=.*|GUACD_IMAGE=$GUACD_IMAGE|" .env
         fi
     fi
 }
@@ -185,7 +185,7 @@ get_tunnel_token() {
         # Update or set the tunnel token
         if grep -q "^CLOUDFLARE_TUNNEL_TOKEN=" .env 2>/dev/null; then
             # Replace existing token
-            sed -i.bak "s/^CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token/" .env
+            sed -i "s/^CLOUDFLARE_TUNNEL_TOKEN=.*/CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token/" .env
         else
             # Add new token
             echo "CLOUDFLARE_TUNNEL_TOKEN=$tunnel_token" >> .env
