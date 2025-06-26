@@ -1,0 +1,64 @@
+# RDP Gateway Hosts Configuration - Single Windows Host Example
+# Replace the IP address, and adjust settings as needed for your environment
+
+# Host definitions
+hosts:
+  # Your Windows host - replace with your actual details
+  - name: "my-windows-pc"
+    address: "192.168.1.100"  # Replace with your Windows host IP
+    port: 3389                # Standard RDP port (change if using custom port)
+    description: "My Windows Desktop/Server"
+    allowed_users:
+      - "rdpuser"             # User that will connect through RDP Gateway
+    allowed_groups:
+      - "remote-users"
+    
+    # Optional: If your Windows host uses a custom RDP port (recommended for security)
+    # port: 13450
+    
+    # Optional: Specify credentials for the target Windows machine
+    # These are the Windows machine credentials, not the RDP Gateway credentials
+    target_credentials:
+      username: "your_windows_username"    # Replace with your Windows username
+      # Password will be prompted or configured separately for security
+
+# Global settings
+settings:
+  # Default RDP port if not specified
+  default_port: 3389
+  
+  # Connection timeout in seconds
+  connection_timeout: 30
+  
+  # Maximum concurrent connections per user
+  max_connections_per_user: 2
+  
+  # Enable logging of connection attempts
+  log_connections: true
+  
+  # Require encryption for all connections
+  require_encryption: true
+  
+  # Network Level Authentication requirement (recommended)
+  require_nla: true
+  
+  # Session settings
+  idle_timeout: 1800      # 30 minutes
+  session_timeout: 14400  # 4 hours
+  
+  # Basic security settings
+  enable_clipboard: true
+  enable_file_transfer: true
+  enable_audio: true
+  enable_printing: true
+  
+  # Allowed security protocols
+  allowed_protocols:
+    - "rdp"
+    - "tls"
+    - "nla"
+
+# Simple host group
+host_groups:
+  my_hosts:
+    - "my-windows-pc" 

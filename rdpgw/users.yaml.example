@@ -1,0 +1,64 @@
+# RDP Gateway Users Configuration - Single User Example
+# This creates a simple user that can connect to your Windows host
+
+# User definitions
+users:
+  # Simple user for RDP Gateway access
+  - username: "rdpuser"
+    # Generate password hash using: htpasswd -bnBC 10 "" password | tr -d ':\n'
+    # For now, using a placeholder - you'll need to generate the actual hash
+    password_hash: "$2a$10$example_hash_replace_with_actual_hash"
+    full_name: "RDP Gateway User"
+    email: "user@yourorganization.com"
+    groups:
+      - "remote-users"
+    permissions:
+      - "connect_assigned"
+    enabled: true
+    mfa_required: false     # Set to true if you want to require 2FA
+    max_concurrent_sessions: 2
+    allowed_hosts:
+      - "my-windows-pc"     # Must match the host name in hosts.yaml
+
+# Group definitions
+groups:
+  remote-users:
+    description: "Remote Access Users"
+    permissions:
+      - "connect_assigned"
+      - "view_own_sessions"
+    default_session_timeout: 14400  # 4 hours
+
+# Authentication settings
+auth_settings:
+  # Simple password requirements
+  password_policy:
+    min_length: 8
+    require_uppercase: true
+    require_lowercase: true
+    require_numbers: true
+    require_special_chars: false
+    
+  # Session settings
+  session_settings:
+    default_timeout: 14400  # 4 hours
+    max_timeout: 28800      # 8 hours
+    idle_timeout: 1800      # 30 minutes
+    
+  # MFA settings (optional)
+  mfa_settings:
+    default_required: false
+    remember_device_days: 30
+    
+  # Account lockout
+  lockout_policy:
+    max_failed_attempts: 5
+    lockout_duration_minutes: 15
+    reset_time_minutes: 60
+
+# Simple audit settings
+audit_settings:
+  log_successful_logins: true
+  log_failed_logins: true
+  log_session_activities: false
+  retention_days: 30 
