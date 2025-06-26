@@ -46,7 +46,7 @@ services:
   # GuacD Daemon
   guacd:
     # Use ARM64-compatible image for Raspberry Pi support
-    image: ${GUACD_IMAGE:-abesnier/guacd:1.5.5}
+    image: ${GUACD_IMAGE:-guacamole/guacd:1.5.5}
     hostname: guacd
     restart: unless-stopped
     networks:
