@@ -16,7 +16,7 @@ services:
       cloudflared:
         ipv4_address: 172.18.0.3
     ports: 
-      - "127.0.0.1:8080:8080"  # Only bind to localhost for security
+      - "8080:8080"
     volumes:
       - guac_config:/config
       - ./logs:/opt/guacamole/logs  # External log directory

@@ -490,6 +490,27 @@ mstsc /v:target-server /g:rdpgw.yourorganization.com
 - **Nginx Proxy**: `rdpgw/nginx/default.conf` - HTTP/HTTPS routing and security
 - **SSL Certificates**: `rdpgw/ssl/` - TLS certificates for secure connections
 
+### Volume Structure
+
+RDP Gateway uses a dedicated volume structure for better organization and management:
+
+```
+data/rdpgw/                          # Main RDP Gateway data volume
+├── conf/                            # Configuration files (auto-synced)
+│   ├── hosts.yaml                   # Target server definitions
+│   ├── users.yaml                   # User accounts and permissions
+│   └── nginx/                       # Nginx proxy configuration
+├── certs/                           # SSL/TLS certificates
+├── logs/                            # Application logs
+├── backups/                         # Automatic configuration backups
+└── config/                          # Additional configuration data
+```
+
+**Configuration Workflow:**
+1. Edit files in `rdpgw/` directory (source files)
+2. Run `./scripts/rdpgw-reload.sh` to sync and reload
+3. Services automatically read from `/srv/rdpgw/` (inside containers)
+
 ### Security Best Practices
 
 1. **Custom RDP Ports**: Use non-standard ports (13450, 13451, etc.) as recommended by [EdTech IRL](https://www.edtechirl.com/p/apache-guacamole-how-to-set-up-and)
@@ -523,6 +544,9 @@ RDP Gateway seamlessly integrates with your existing Guacamole and Cloudflare se
 docker compose -f docker-compose-rdpgw.yaml up -d
 docker compose -f docker-compose-cloudflare-rdpgw.yaml up -d
 
+# Reload configuration after changes
+./scripts/rdpgw-reload.sh
+
 # Monitor services
 docker compose -f docker-compose-rdpgw.yaml ps
 docker compose -f docker-compose-rdpgw.yaml logs
@@ -530,6 +554,24 @@ docker compose -f docker-compose-rdpgw.yaml logs
 # Stop services
 docker compose -f docker-compose-rdpgw.yaml down
 docker compose -f docker-compose-cloudflare-rdpgw.yaml down
+```
+
+### Configuration Management
+
+After making changes to RDP Gateway configuration files:
+
+```bash
+# Validate configuration only
+./scripts/rdpgw-reload.sh --validate-only
+
+# Force reload without prompts
+./scripts/rdpgw-reload.sh --force
+
+# Reload with backup (default)
+./scripts/rdpgw-reload.sh
+
+# Skip backup creation
+./scripts/rdpgw-reload.sh --no-backup
 ```
 
 ## Monitoring and Troubleshooting
@@ -651,6 +693,7 @@ docker system prune -af --volumes
 | `./scripts/setup-duo.sh` | DUO 2FA setup | Download extension, configure authentication |
 | `./scripts/setup-branding.sh` | Custom branding | Logo, themes, CSS customization |
 | `./scripts/setup-rdpgw.sh` | RDP Gateway | Native RDP client support |
+| `./scripts/rdpgw-reload.sh` | RDP Gateway reload | Reload configuration after changes |
 | `./scripts/backup.sh` | Backup system | Automated configuration backup |
 | `./scripts/restore.sh` | Restore system | Restore from backups |
 | `./scripts/monitor.sh` | System monitoring | Health checks and status |
@@ -770,6 +813,7 @@ guac-cloudflare/
 │   ├── setup-duo.sh                # DUO 2FA configuration
 │   ├── setup-branding.sh           # Custom branding setup
 │   ├── setup-rdpgw.sh             # RDP Gateway setup
+│   ├── rdpgw-reload.sh             # RDP Gateway configuration reload
 │   ├── backup.sh                   # Backup automation
 │   ├── restore.sh                  # Restore automation
 │   └── monitor.sh                  # System monitoring
@@ -777,11 +821,17 @@ guac-cloudflare/
 │   ├── css/                        # Custom themes
 │   ├── logo.png                    # Organization logo
 │   └── guacamole.properties        # Branding configuration
-├── rdpgw/                          # RDP Gateway configuration
-│   ├── hosts.yaml                  # Target server definitions
-│   ├── users.yaml                  # User management
+├── rdpgw/                          # RDP Gateway source configuration
+│   ├── hosts.yaml                  # Target server definitions (edit these)
+│   ├── users.yaml                  # User management (edit these)
 │   ├── nginx/                      # Proxy configuration
 │   └── ssl/                        # SSL certificates
+├── data/                           # Volume data (auto-managed)
+│   └── rdpgw/                      # RDP Gateway volume data
+│       ├── conf/                   # Synced configuration files
+│       ├── certs/                  # SSL certificates
+│       ├── logs/                   # Application logs
+│       └── backups/                # Automatic backups
 ├── extensions/                      # Guacamole extensions (DUO, etc.)
 ├── logs/                           # Application logs
 └── backups/                        # Automated backups

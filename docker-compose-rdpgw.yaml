@@ -15,13 +15,14 @@ services:
       default:
         ipv4_address: 172.18.0.5
     ports:
-      - "127.0.0.1:${RDPGW_PORT:-3391}:${RDPGW_PORT:-3391}"  # RDP Gateway port (localhost only)
-      - "127.0.0.1:${RDPGW_WEB_PORT:-443}:${RDPGW_WEB_PORT:-443}"    # HTTPS port for RDP Gateway web interface
+      - "${RDPGW_PORT:-3391}:${RDPGW_PORT:-3391}"  # RDP Gateway port
+      - "${RDPGW_WEB_PORT:-443}:${RDPGW_WEB_PORT:-443}"    # HTTPS port for RDP Gateway web interface
     volumes:
-      - rdpgw_config:/opt/rdpgw/config
-      - rdpgw_certs:/opt/rdpgw/certs
-      - ./logs:/opt/rdpgw/logs
-      - ./rdpgw:/opt/rdpgw/conf
+      - rdpgw_config:/opt/rdpgw/config               # Main configuration volume
+      - rdpgw_data:/srv/rdpgw                        # Shared RDP Gateway data volume
+      - rdpgw_certs:/opt/rdpgw/certs                 # SSL certificates
+      - rdpgw_logs:/opt/rdpgw/logs                   # Application logs
+      - ./rdpgw:/srv/rdpgw/conf:ro                   # Read-only bind mount for config files
     environment:
       - RDPGW_SERVER_CERT=/opt/rdpgw/certs/server.crt
       - RDPGW_SERVER_KEY=/opt/rdpgw/certs/server.key
@@ -29,8 +30,10 @@ services:
       - RDPGW_WEB_PORT=${RDPGW_WEB_PORT:-443}
       - RDPGW_ENABLE_AUTH=true
       - RDPGW_AUTH_BACKEND=${RDPGW_AUTH_BACKEND:-local}
-      - RDPGW_HOSTS_FILE=/opt/rdpgw/conf/hosts.yaml
-      - RDPGW_USERS_FILE=/opt/rdpgw/conf/users.yaml
+      - RDPGW_HOSTS_FILE=/srv/rdpgw/conf/hosts.yaml
+      - RDPGW_USERS_FILE=/srv/rdpgw/conf/users.yaml
+      - RDPGW_CONFIG_DIR=/srv/rdpgw/conf
+      - RDPGW_DATA_DIR=/srv/rdpgw
       - RDPGW_LOG_LEVEL=${RDPGW_LOG_LEVEL:-info}
       - RDPGW_ENABLE_SECURITY=true
       - RDPGW_IDLE_TIMEOUT=${RDPGW_IDLE_TIMEOUT:-1800}
@@ -41,7 +44,7 @@ services:
       - RDPGW_DUO_API_HOSTNAME=${DUO_API_HOSTNAME:-}
       - RDPGW_DUO_APPLICATION_KEY=${DUO_APPLICATION_KEY:-}
     healthcheck:
-      test: ["CMD", "curl", "-f", "https://localhost:443/health"]
+      test: ["CMD", "curl", "-f", "https://localhost:${RDPGW_WEB_PORT:-443}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -57,6 +60,7 @@ services:
     labels:
       - "traefik.enable=false"
       - "com.docker.compose.project=rdpgw"
+      - "com.rdpgw.config.dir=/srv/rdpgw"
 
   # Optional: FreeRDP Gateway (alternative implementation)
   freerdp-gateway:
@@ -67,18 +71,19 @@ services:
       default:
         ipv4_address: 172.18.0.6
     ports:
-      - "127.0.0.1:${FREERDP_PORT:-3392}:${FREERDP_PORT:-3392}"
+      - "${FREERDP_PORT:-3392}:${FREERDP_PORT:-3392}"
     volumes:
       - freerdp_config:/etc/freerdp
-      - ./logs:/var/log/freerdp
-      - ./rdpgw:/etc/freerdp/conf
+      - rdpgw_logs:/var/log/freerdp
+      - rdpgw_data:/srv/rdpgw:ro                     # Shared RDP Gateway data (read-only)
     environment:
       - FREERDP_GATEWAY_PORT=${FREERDP_PORT:-3392}
       - FREERDP_LOG_LEVEL=INFO
       - FREERDP_AUTH_BACKEND=file
-      - FREERDP_CONFIG_FILE=/etc/freerdp/conf/gateway.conf
+      - FREERDP_CONFIG_FILE=/srv/rdpgw/conf/gateway.conf
+      - FREERDP_DATA_DIR=/srv/rdpgw
     healthcheck:
-      test: ["CMD", "netstat", "-ln", "|", "grep", ":3392"]
+      test: ["CMD", "netstat", "-ln", "|", "grep", ":${FREERDP_PORT:-3392}"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -96,7 +101,27 @@ services:
 volumes:
   rdpgw_config:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/rdpgw/config
+  rdpgw_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/rdpgw
   rdpgw_certs:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/rdpgw/certs
+  rdpgw_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/data/rdpgw/logs
   freerdp_config:
     driver: local 

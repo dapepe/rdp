@@ -3,62 +3,22 @@
 
 # Host definitions
 hosts:
-  # Example Windows Server
-  - name: "windows-server-01"
-    address: "192.168.1.100"
-    port: 3389
-    description: "Windows Server 2022 - Main Server"
+  # Your Windows machine at 192.168.1.11
+  - name: "WindowsDesktop"
+    address: "192.168.1.11"  # Your Windows machine IP
+    port: 3389               # Standard RDP port
+    description: "Windows Desktop at 192.168.1.11"
     allowed_users:
+      - "rdpuser"            # User that will connect through RDP Gateway
       - "admin"
-      - "it-staff"
     allowed_groups:
-      - "administrators"
       - "remote-users"
     
-  # Example Windows Desktop
-  - name: "workstation-01"
-    address: "192.168.1.150"
-    port: 3389
-    description: "IT Workstation"
-    allowed_users:
-      - "admin"
-    allowed_groups:
-      - "administrators"
-    
-  # Example server with custom RDP port
-  - name: "secure-server"
-    address: "192.168.1.200"
-    port: 13450  # Custom RDP port as suggested in the EdTech IRL article
-    description: "Secure Server with custom RDP port"
-    allowed_users:
-      - "admin"
-      - "security-team"
-    allowed_groups:
-      - "administrators"
-      - "security"
-    
-  # Example domain controller
-  - name: "domain-controller"
-    address: "192.168.1.10"
-    port: 3389
-    description: "Active Directory Domain Controller"
-    allowed_users:
-      - "admin"
-      - "domain-admin"
-    allowed_groups:
-      - "domain-admins"
-    
-  # Example development server
-  - name: "dev-server"
-    address: "192.168.1.250"
-    port: 3389
-    description: "Development Server"
-    allowed_users:
-      - "developer"
-      - "qa-team"
-    allowed_groups:
-      - "developers"
-      - "qa"
+    # Optional: Specify credentials for the target Windows machine
+    # These are the Windows machine credentials, not the RDP Gateway credentials
+    target_credentials:
+      username: "your_windows_username"    # Replace with your actual Windows username
+      # Password will be prompted during connection for security
 
 # Global settings
 settings:
@@ -69,7 +29,7 @@ settings:
   connection_timeout: 30
   
   # Maximum concurrent connections per user
-  max_connections_per_user: 3
+  max_connections_per_user: 2
   
   # Enable logging of connection attempts
   log_connections: true
@@ -77,21 +37,18 @@ settings:
   # Require encryption for all connections
   require_encryption: true
   
-  # Network Level Authentication requirement
+  # Network Level Authentication requirement (recommended)
   require_nla: true
   
-  # Certificate validation
-  ignore_certificate_errors: false
-  
   # Session settings
-  idle_timeout: 1800  # 30 minutes
-  session_timeout: 28800  # 8 hours
+  idle_timeout: 1800      # 30 minutes
+  session_timeout: 14400  # 4 hours
   
-  # Security settings
+  # Security settings for Mac compatibility
   enable_clipboard: true
-  enable_file_transfer: false
+  enable_file_transfer: true
   enable_audio: true
-  enable_printing: false
+  enable_printing: true
   
   # Allowed security protocols
   allowed_protocols:
@@ -99,15 +56,7 @@ settings:
     - "tls"
     - "nla"
 
-# Host groups for easier management
+# Host groups
 host_groups:
-  servers:
-    - "windows-server-01"
-    - "secure-server"
-    - "domain-controller"
-  
-  workstations:
-    - "workstation-01"
-  
-  development:
-    - "dev-server" 
+  windows_hosts:
+    - "windows-desktop-11" 

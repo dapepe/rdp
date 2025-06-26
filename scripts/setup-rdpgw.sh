@@ -31,18 +31,30 @@ log_header() {
 
 # Configuration
 RDPGW_DIR="./rdpgw"
+RDPGW_DATA_DIR="./data/rdpgw"
 
 # Create RDP Gateway directories
 create_rdpgw_directories() {
     log_header "Creating RDP Gateway Directories"
     
+    # Create source configuration directories
     mkdir -p "$RDPGW_DIR"
     mkdir -p "$RDPGW_DIR/nginx"
     mkdir -p "$RDPGW_DIR/ssl"
     mkdir -p "$RDPGW_DIR/cloudflare"
     mkdir -p "$RDPGW_DIR/certs"
     
+    # Create data volume directories
+    mkdir -p "$RDPGW_DATA_DIR"
+    mkdir -p "$RDPGW_DATA_DIR/conf"
+    mkdir -p "$RDPGW_DATA_DIR/certs"
+    mkdir -p "$RDPGW_DATA_DIR/logs"
+    mkdir -p "$RDPGW_DATA_DIR/backups"
+    mkdir -p "$RDPGW_DATA_DIR/config"
+    
     log_info "RDP Gateway directories created successfully"
+    log_info "  - Source config: $RDPGW_DIR"
+    log_info "  - Volume data: $RDPGW_DATA_DIR"
 }
 
 # Process Nginx configuration template
@@ -91,13 +103,15 @@ generate_ssl_certificates() {
         # Generate self-signed certificate
         openssl x509 -req -days 365 -in "$RDPGW_DIR/ssl/server.csr" -signkey "$RDPGW_DIR/ssl/server.key" -out "$RDPGW_DIR/ssl/server.crt"
         
-        # Copy certificates to certs directory
+        # Copy certificates to certs directory and data volume
         cp "$RDPGW_DIR/ssl/server.crt" "$RDPGW_DIR/certs/"
         cp "$RDPGW_DIR/ssl/server.key" "$RDPGW_DIR/certs/"
+        cp "$RDPGW_DIR/ssl/server.crt" "$RDPGW_DATA_DIR/certs/"
+        cp "$RDPGW_DIR/ssl/server.key" "$RDPGW_DATA_DIR/certs/"
         
         # Set proper permissions
-        chmod 600 "$RDPGW_DIR/ssl/server.key" "$RDPGW_DIR/certs/server.key"
-        chmod 644 "$RDPGW_DIR/ssl/server.crt" "$RDPGW_DIR/certs/server.crt"
+        chmod 600 "$RDPGW_DIR/ssl/server.key" "$RDPGW_DIR/certs/server.key" "$RDPGW_DATA_DIR/certs/server.key"
+        chmod 644 "$RDPGW_DIR/ssl/server.crt" "$RDPGW_DIR/certs/server.crt" "$RDPGW_DATA_DIR/certs/server.crt"
         
         log_info "SSL certificates generated successfully"
         log_warn "Using self-signed certificates. Consider using Let's Encrypt or proper CA certificates for production."
@@ -187,6 +201,37 @@ setup_cloudflare_tunnel() {
     log_info "RDP Gateway will use the unified tunnel configuration"
 }
 
+# Sync configuration to volume
+sync_configuration() {
+    log_header "Syncing Configuration to Volume"
+    
+    log_info "Copying configuration files to volume..."
+    
+    # Copy hosts and users configuration
+    if [ -f "$RDPGW_DIR/hosts.yaml" ]; then
+        cp "$RDPGW_DIR/hosts.yaml" "$RDPGW_DATA_DIR/conf/"
+        log_info "  - hosts.yaml copied to volume"
+    fi
+    
+    if [ -f "$RDPGW_DIR/users.yaml" ]; then
+        cp "$RDPGW_DIR/users.yaml" "$RDPGW_DATA_DIR/conf/"
+        log_info "  - users.yaml copied to volume"
+    fi
+    
+    # Copy nginx configuration
+    if [ -d "$RDPGW_DIR/nginx" ]; then
+        mkdir -p "$RDPGW_DATA_DIR/conf/nginx"
+        cp -r "$RDPGW_DIR/nginx/"* "$RDPGW_DATA_DIR/conf/nginx/" 2>/dev/null || true
+        log_info "  - nginx configuration copied to volume"
+    fi
+    
+    # Set proper permissions
+    find "$RDPGW_DATA_DIR" -name "*.yaml" -exec chmod 644 {} \; 2>/dev/null || true
+    find "$RDPGW_DATA_DIR" -name "*.yml" -exec chmod 644 {} \; 2>/dev/null || true
+    
+    log_info "Configuration sync completed"
+}
+
 # Configure hosts and permissions
 configure_hosts() {
     log_header "Configuring Hosts and Permissions"
@@ -205,6 +250,7 @@ configure_hosts() {
         echo "  address: '192.168.1.200'"
         echo "  port: 13450  # Custom RDP port"
         echo
+        echo "After editing configuration files, use './scripts/rdpgw-reload.sh' to apply changes."
     else
         log_warn "Hosts configuration template not found"
     fi
@@ -312,9 +358,15 @@ display_setup_info() {
     echo "New-NetFirewallRule -DisplayName 'RDPPORTLatest-TCP-In' -Profile 'Public' -Direction Inbound -Action Allow -Protocol TCP -LocalPort \$portvalue"
     echo
     echo "Management Commands:"
+    echo "- Reload config: ./scripts/rdpgw-reload.sh"
     echo "- Monitor: ./scripts/monitor-rdpgw.sh"
     echo "- Logs: docker compose -f docker-compose-rdpgw.yaml logs"
     echo "- Stop: docker compose -f docker-compose-rdpgw.yaml down"
+    echo
+    echo "Configuration Structure:"
+    echo "- Source files: $RDPGW_DIR/ (edit these files)"
+    echo "- Volume data: $RDPGW_DATA_DIR/ (automatically synced)"
+    echo "- Container path: /srv/rdpgw/ (read by services)"
     echo "=========================================="
 }
 
@@ -332,6 +384,7 @@ main() {
     configure_environment
     setup_cloudflare_tunnel
     configure_hosts
+    sync_configuration
     test_rdpgw_config
     start_rdpgw_services
     display_setup_info
