@@ -84,17 +84,17 @@ detect_architecture() {
         aarch64|arm64)
             log_info "Detected ARM64 architecture (Raspberry Pi)"
             GUACAMOLE_IMAGE="abesnier/guacamole:1.5.5-pg15"
-            GUACD_IMAGE="abesnier/guacd:1.5.5"
+            GUACD_IMAGE="guacamole/guacd:1.5.5"
             ;;
         armv7l|armv6l)
             log_warn "Detected 32-bit ARM architecture - using ARM64 images (may not work)"
             GUACAMOLE_IMAGE="abesnier/guacamole:1.5.5-pg15"
-            GUACD_IMAGE="abesnier/guacd:1.5.5"
+            GUACD_IMAGE="guacamole/guacd:1.5.5"
             ;;
         *)
             log_warn "Unknown architecture: $ARCH - defaulting to ARM64 images"
             GUACAMOLE_IMAGE="abesnier/guacamole:1.5.5-pg15"
-            GUACD_IMAGE="abesnier/guacd:1.5.5"
+            GUACD_IMAGE="guacamole/guacd:1.5.5"
             ;;
     esac
     
