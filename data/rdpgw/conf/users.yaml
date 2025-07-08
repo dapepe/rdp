@@ -1,0 +1,18 @@
+users:
+  rdpuser:
+    password: "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"  # password: secret
+    groups:
+      - users
+  admin:
+    password: "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy"  # password: secret
+    groups:
+      - users
+      - admins
+
+groups:
+  users:
+    hosts:
+      - "WindowsDesktop"
+  admins:
+    hosts:
+      - "*" 

@@ -193,14 +193,23 @@ The setup script will automatically configure everything, including the tunnel t
 The script will:
 1. Detect your system architecture (AMD64/ARM64)
 2. Create the `.env` file with secure passwords
-3. Prompt for your Cloudflare tunnel token
-4. Configure both Guacamole and RDP Gateway to use the same tunnel
-5. Start all services in the correct order
-6. **Display detailed network configuration** including:
+3. **Prompt for RDP Gateway configuration directory** (default: `/srv/rdpgw`)
+4. Prompt for your Cloudflare tunnel token
+5. Configure both Guacamole and RDP Gateway to use the same tunnel
+6. Start all services in the correct order
+7. **Display detailed network configuration** including:
    - Service IP addresses and ports
    - Access URLs (local and Cloudflare)
    - Default credentials
    - Security recommendations
+
+### Configuration Directory Setup
+
+The setup script will ask for a configuration directory for RDP Gateway files:
+- **Default location**: `/srv/rdpgw`
+- **Purpose**: Stores `hosts.yaml`, `users.yaml`, and other configuration files
+- **Automatic creation**: Directory is created with proper permissions if it doesn't exist
+- **Permissions**: The script will handle directory creation and permissions automatically
 
 ### 3. Manual Environment Configuration (Optional)
 
@@ -483,6 +492,201 @@ cmdkey /generic:rdpgw.yourorganization.com /user:username /pass:password
 mstsc /v:target-server /g:rdpgw.yourorganization.com
 ```
 
+## Connecting via Remote Desktop Apps
+
+### Windows App (macOS) - Recommended for Mac Users
+
+Based on the [Stony Brook University RD Gateway guide](https://it.stonybrook.edu/help/kb/using-rd-gateway-in-microsoft-remote-desktop-to-remote-from-a-mac-into-your-university-owned), here's how to configure the Windows App:
+
+#### 1. Set up RD Gateway
+
+1. **Launch the Windows App** on your Mac
+2. **Configure Gateway**:
+   - From the macOS menu bar, select **Windows App** → **Settings**
+   - Go to **Preferences** → **Gateways** tab
+   - Click the **+ (plus)** icon to add a gateway
+   - Enter these values:
+     - **Gateway Name**: `rdpgw.yourorganization.com` (your Cloudflare tunnel domain)
+     - **User Account**: Use **PC User Account**
+     - **Friendly name**: `RDP Gateway`
+     - **Username**: `rdpuser` (your RDP Gateway username from `users.yaml`)
+     - **Password**: Your RDP Gateway password
+   - Click **Add**
+
+#### 2. Set up Your Windows Desktop Connection
+
+1. **Add PC Connection**:
+   - In Windows App, go to **Devices** tab
+   - Click the **+ (plus)** icon → **Add PC**
+   - Fill in the fields:
+     - **PC name**: `192.168.1.11` (your Windows machine IP from `hosts.yaml`)
+     - **Credentials**: Select the previously made account or enter:
+       - **Username**: Your Windows machine username
+       - **Password**: Your Windows machine password
+   - **Friendly Name**: `Windows Desktop 192.168.1.11`
+   - **Group**: `Saved Desktops`
+   - **Gateway**: Select the RD Gateway you set up above
+   - Click **Add**
+
+2. **Configure Display Settings** (optional):
+   - Click the **Display** tab
+   - Select **☑︎Use all monitors** if you want to use multiple monitors
+   - Click **Save**
+
+3. **Configure Audio/Video** (optional):
+   - Click the **Devices & Audio** tab
+   - Select **☑︎Microphone** and **☑︎Cameras** if needed
+   - Click **Save**
+
+#### 3. Connect to Your Windows Machine
+
+1. **Double-click** on your Windows Desktop connection in the Windows App
+2. **Authentication Flow**:
+   - You'll first authenticate with the RDP Gateway (using `rdpuser` credentials)
+   - Then you'll authenticate with your Windows machine (using your Windows credentials)
+3. **Accept Certificates** if prompted
+4. **DUO 2FA** (if enabled): Approve the login request on your DUO device
+
+### Microsoft Remote Desktop (Legacy - macOS)
+
+For older versions of Remote Desktop on macOS:
+
+#### 1. Set up Gateway
+1. **Open Remote Desktop app**
+2. **Go to Preferences** → **Gateways**
+3. **Add Gateway**:
+   - **Server name**: `rdpgw.yourorganization.com`
+   - **User name**: `rdpuser` (RDP Gateway user)
+   - **Password**: Your RDP Gateway password
+   - **Friendly name**: `RDP Gateway`
+
+#### 2. Add Desktop Connection
+1. **Add Desktop**:
+   - **PC name**: `192.168.1.11` (target Windows machine)
+   - **Gateway**: Select your configured gateway
+   - **User account**: Your Windows machine credentials
+
+### Windows Built-in RDP (mstsc)
+
+#### 1. Command Line Connection
+```cmd
+# Basic connection through gateway
+mstsc /v:192.168.1.11 /g:rdpgw.yourorganization.com
+
+# With stored credentials
+cmdkey /generic:rdpgw.yourorganization.com /user:rdpuser /pass:your_gateway_password
+mstsc /v:192.168.1.11 /g:rdpgw.yourorganization.com
+```
+
+#### 2. GUI Configuration
+1. **Open Remote Desktop Connection** (`mstsc`)
+2. **Advanced Tab** → **Connect through RD Gateway server**
+3. **Settings**:
+   - **Server name**: `rdpgw.yourorganization.com`
+   - **Logon method**: Ask for password (NTLM)
+   - **User name**: `rdpuser`
+   - **Password**: Your RDP Gateway password
+4. **General Tab**:
+   - **Computer**: `192.168.1.11`
+   - **User name**: Your Windows machine username
+
+### FreeRDP (Linux/Command Line)
+
+```bash
+# Basic connection
+xfreerdp /v:192.168.1.11 /g:rdpgw.yourorganization.com /gu:rdpuser /gp:gateway_password /u:windows_username /p:windows_password
+
+# With additional options
+xfreerdp /v:192.168.1.11 /g:rdpgw.yourorganization.com /gu:rdpuser /gp:gateway_password \
+         /u:windows_username /p:windows_password \
+         /size:1920x1080 /clipboard /sound:sys:alsa
+```
+
+### Remmina (Linux GUI)
+
+1. **Create New Connection**:
+   - **Protocol**: RDP
+   - **Server**: `192.168.1.11`
+   - **Username**: Your Windows machine username
+   - **Password**: Your Windows machine password
+
+2. **Advanced Tab**:
+   - **RD Gateway server**: `rdpgw.yourorganization.com`
+   - **RD Gateway username**: `rdpuser`
+   - **RD Gateway password**: Your RDP Gateway password
+
+### Connection Flow
+
+Your connection follows this path:
+```
+Remote Desktop App → Cloudflare Tunnel → RDP Gateway → Windows PC (192.168.1.11)
+                     (rdpgw.yourorganization.com)    (172.18.0.5:3391)
+```
+
+### Troubleshooting Connections
+
+#### Common Issues
+
+1. **Gateway Authentication Failed**:
+   - Verify RDP Gateway credentials in `rdpgw/users.yaml`
+   - Check password hash is correctly generated
+   - Ensure user is enabled: `enabled: true`
+
+2. **Target Machine Unreachable**:
+   - Verify Windows machine IP in `rdpgw/hosts.yaml`
+   - Ensure RDP is enabled on target Windows machine:
+     ```powershell
+     Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+     Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+     ```
+
+3. **Certificate Errors**:
+   - Accept self-signed certificates when prompted
+   - For production, use proper CA certificates
+
+4. **Connection Timeout**:
+   - Check Cloudflare tunnel status in dashboard
+   - Verify RDP Gateway service is running: `docker ps | grep rdpgw`
+
+#### Diagnostic Commands
+
+```bash
+# Check RDP Gateway status
+docker compose -f docker-compose-rdpgw.yaml ps
+
+# View RDP Gateway logs
+docker compose -f docker-compose-rdpgw.yaml logs rdpgw
+
+# Test gateway connectivity
+curl -f https://rdpgw.yourorganization.com/health
+
+# Reload configuration after changes
+./scripts/rdpgw-reload.sh --validate-only
+```
+
+#### Enable RDP on Target Windows Machine
+
+Run these commands as Administrator on your Windows machine:
+
+```powershell
+# Enable RDP
+Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+
+# Enable RDP through Windows Firewall
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
+# Optional: Change to custom port (recommended for security)
+$portvalue = 13450
+Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "PortNumber" -Value $portvalue
+New-NetFirewallRule -DisplayName 'RDPPORTLatest-TCP-In' -Profile 'Public' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $portvalue
+New-NetFirewallRule -DisplayName 'RDPPORTLatest-UDP-In' -Profile 'Public' -Direction Inbound -Action Allow -Protocol UDP -LocalPort $portvalue
+
+# Restart Terminal Services
+Restart-Service TermService -Force
+```
+
+Remember to update `rdpgw/hosts.yaml` with the custom port if you change it from the default 3389.
+
 ### Configuration Files
 
 - **Hosts Configuration**: `rdpgw/hosts.yaml` - Define target servers and permissions
@@ -515,10 +719,18 @@ data/rdpgw/                          # Main RDP Gateway data volume
 
 1. **Custom RDP Ports**: Use non-standard ports (13450, 13451, etc.) as recommended by [EdTech IRL](https://www.edtechirl.com/p/apache-guacamole-how-to-set-up-and)
 2. **Network Level Authentication**: Enable NLA on all target servers
-3. **Strong Passwords**: Enforce complex password policies
+3. **Strong Passwords**: Enforce complex password policies with confirmation
 4. **Session Timeouts**: Configure appropriate idle and session timeouts
 5. **Audit Logging**: Enable comprehensive session and connection logging
 6. **IP Restrictions**: Use Cloudflare Zero Trust policies for IP-based access control
+
+### Password Security
+
+The setup scripts include enhanced password security features:
+- **Password Confirmation**: All password prompts require confirmation to prevent typos
+- **Empty Password Protection**: Passwords cannot be empty
+- **Secure Input**: Passwords are entered securely (not displayed on screen)
+- **Bcrypt Hashing**: All passwords are stored as bcrypt hashes with cost factor 10
 
 ### Integration with Existing Setup
 

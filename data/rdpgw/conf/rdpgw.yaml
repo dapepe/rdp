@@ -1,0 +1,33 @@
+server:
+  hosts_file: "/srv/rdpgw/conf/hosts.yaml"
+  users_file: "/srv/rdpgw/conf/users.yaml"
+  cert: "/opt/rdpgw/certs/server.crt"
+  key: "/opt/rdpgw/certs/server.key"
+  gateway_address: "rdpgw.zeyos.com"
+  port: 3391
+  web_port: 443
+  enable_http_proxy: false
+  enable_ntlm: true
+  enable_tls: true
+  session_timeout: 3600
+  idle_timeout: 900
+
+security:
+  enable_auth: true
+  auth_backend: "local"
+  session_store: "cookie"
+  require_pac: false
+  
+caps:
+  smart_card_auth: false
+  token_auth: false
+  gateway_creds_source: 0
+  logon_creds_source: 0
+  clipboard: true
+  drive_redirection: true
+  audio_redirection: true
+  printer_redirection: true
+
+logging:
+  level: "info"
+  output: "stdout" 

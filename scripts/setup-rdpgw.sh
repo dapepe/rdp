@@ -29,9 +29,48 @@ log_header() {
     echo -e "${BLUE}[HEADER]${NC} $1"
 }
 
+# Helper function for password confirmation
+get_password_with_confirmation() {
+    local prompt_text="$1"
+    local password_var_name="$2"
+    
+    while true; do
+        read -s -p "$prompt_text: " password
+        echo
+        
+        if [ -z "$password" ]; then
+            log_error "Password cannot be empty. Please try again."
+            continue
+        fi
+        
+        read -s -p "Confirm $prompt_text: " password_confirm
+        echo
+        
+        if [ "$password" = "$password_confirm" ]; then
+            log_info "Password confirmed successfully"
+            # Set the variable using eval
+            eval "$password_var_name=\"$password\""
+            break
+        else
+            log_error "Passwords do not match. Please try again."
+            echo
+        fi
+    done
+}
+
 # Configuration
 RDPGW_DIR="./rdpgw"
 RDPGW_DATA_DIR="./data/rdpgw"
+
+# Load RDP Gateway config directory from environment if set
+if [ -f ".env" ]; then
+    RDPGW_CONFIG_FROM_ENV=$(grep "^RDPGW_CONFIG_DIR=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+    if [ -n "$RDPGW_CONFIG_FROM_ENV" ]; then
+        log_info "Using RDP Gateway config directory from environment: $RDPGW_CONFIG_FROM_ENV"
+        # Update data directory to use the configured location
+        RDPGW_DATA_DIR="$RDPGW_CONFIG_FROM_ENV"
+    fi
+fi
 
 # Create RDP Gateway directories
 create_rdpgw_directories() {
@@ -137,8 +176,8 @@ setup_user_authentication() {
     echo "Password: Please set a secure password"
     echo
     
-    read -s -p "Enter password for admin user: " admin_password
-    echo
+    # Get admin password with confirmation
+    get_password_with_confirmation "Enter password for admin user" "admin_password"
     
     if command -v htpasswd &> /dev/null; then
         admin_hash=$(htpasswd -bnBC 10 "" "$admin_password" | tr -d ':\n' | sed 's/^[^$]*\$//')

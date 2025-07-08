@@ -167,6 +167,9 @@ RDPGW_PROXY_HTTPS_PORT=8443
 RDPGW_PROXY_HTTP_PORT=8080
 FREERDP_PORT=3392
 RDPGW_IP=172.18.0.5
+
+# RDP Gateway Configuration Directory
+RDPGW_CONFIG_DIR=/srv/rdpgw
 EOF
         
         log_info "Environment file created with secure passwords and correct images"
@@ -209,6 +212,54 @@ setup_database() {
         log_warn "Database setup script not found, using fallback initialization"
         mkdir -p init
     fi
+}
+
+# Get RDP Gateway configuration location
+get_rdpgw_config_location() {
+    log_header "RDP Gateway Configuration Location"
+    
+    echo
+    echo "RDP Gateway needs a location to store configuration files."
+    echo "This directory will be used for hosts.yaml, users.yaml, and other config files."
+    echo
+    read -p "Enter RDP Gateway config directory (default: /srv/rdpgw): " rdpgw_config_dir
+    
+    # Use default if no input provided
+    if [ -z "$rdpgw_config_dir" ]; then
+        rdpgw_config_dir="/srv/rdpgw"
+    fi
+    
+    # Create directory if it doesn't exist
+    if [ ! -d "$rdpgw_config_dir" ]; then
+        log_info "Creating RDP Gateway config directory: $rdpgw_config_dir"
+        if ! mkdir -p "$rdpgw_config_dir"; then
+            log_error "Failed to create directory: $rdpgw_config_dir"
+            log_error "Please check permissions or run with sudo"
+            exit 1
+        fi
+        
+        # Set appropriate permissions
+        chmod 755 "$rdpgw_config_dir"
+        log_info "Directory created successfully with proper permissions"
+    else
+        log_info "Using existing directory: $rdpgw_config_dir"
+    fi
+    
+    # Update environment file with the config location
+    if grep -q "^RDPGW_CONFIG_DIR=" .env 2>/dev/null; then
+        # Replace existing config dir
+        grep -v "^RDPGW_CONFIG_DIR=" .env > .env.tmp
+        echo "RDPGW_CONFIG_DIR=$rdpgw_config_dir" >> .env.tmp
+        mv .env.tmp .env
+    else
+        # Add new config dir
+        echo "RDPGW_CONFIG_DIR=$rdpgw_config_dir" >> .env
+    fi
+    
+    log_info "RDP Gateway config directory set to: $rdpgw_config_dir"
+    
+    # Export for use in other functions
+    export RDPGW_CONFIG_DIR="$rdpgw_config_dir"
 }
 
 # Get Cloudflare tunnel token
@@ -485,6 +536,7 @@ main() {
     detect_architecture
     setup_environment
     setup_database
+    get_rdpgw_config_location
     get_tunnel_token
     handle_network_conflicts
     start_services

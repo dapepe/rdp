@@ -1,0 +1,5 @@
+hosts:
+  WindowsDesktop:
+    hostname: "192.168.1.11"
+    port: 3389
+    description: "exo.zeyos.com" 
